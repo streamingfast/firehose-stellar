@@ -2,16 +2,19 @@ package main
 
 import (
 	"fmt"
+	"os"
+	"time"
+
 	"github.com/spf13/cobra"
 	"github.com/streamingfast/logging"
 	"go.uber.org/zap"
-	"time"
 )
 
 var logger, tracer = logging.PackageLogger("firestellar", "github.com/streamingfast/firehose-stellar")
 var rootCmd = &cobra.Command{
-	Use:   "firesol",
-	Short: "firesol fetching and tooling",
+	Use:   "firestellar",
+	Short: "Firehose Stellar fetching and tooling cli",
+	Args:  cobra.ExactArgs(1),
 }
 
 func init() {
@@ -20,7 +23,10 @@ func init() {
 }
 
 func main() {
-	fmt.Println("Goodbye!")
+	if err := rootCmd.Execute(); err != nil {
+		_, _ = fmt.Fprintf(os.Stderr, "Whoops. There was an error while executing your CLI '%s'", err)
+		os.Exit(1)
+	}
 }
 
 func newFetchCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
