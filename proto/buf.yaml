@@ -1,0 +1,7 @@
+version: v1
+name: buf.build/streamingfast/firehose-stellar
+deps:
+  - buf.build/googleapis/googleapis
+breaking:
+  use:
+    - FILE

@@ -1,0 +1,12 @@
+syntax = "proto3";
+package sf.stellar.type.v1;
+
+option go_package = "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1;pbstellar";
+import "google/protobuf/timestamp.proto";
+
+message Block {
+  uint64 number = 1;
+  bytes hash = 2;
+
+  google.protobuf.Timestamp timestamp = 9;
+}

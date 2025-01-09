@@ -10,7 +10,6 @@ import (
 	firecore "github.com/streamingfast/firehose-core"
 	"github.com/streamingfast/firehose-core/blockpoller"
 	firecoreRPC "github.com/streamingfast/firehose-core/rpc"
-	"github.com/streamingfast/firehose-stellar/block"
 	"github.com/streamingfast/firehose-stellar/rpc"
 	"github.com/streamingfast/logging"
 	"go.uber.org/zap"
@@ -34,7 +33,7 @@ func NewFetchCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 	return cmd
 }
 
-func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecutor {
+func fetchRunE(logger *zap.Logger, _ logging.Tracer) firecore.CommandExecutor {
 	return func(cmd *cobra.Command, args []string) (err error) {
 		stateDir := sflags.MustGetString(cmd, "state-dir")
 
@@ -52,7 +51,7 @@ func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecut
 			zap.String("state_dir", stateDir),
 			zap.Uint64("first_streamable_block", startBlock),
 			zap.Duration("interval_between_fetch", fetchInterval),
-			zap.Duration("latest_block_retry_interval", sflags.MustGetDuration(cmd, "latest-block-retry-interval")),
+			zap.Duration("latest_block_retry_interval", latestBlockRetryInterval),
 		)
 
 		rollingStrategy := firecoreRPC.NewRollingStrategyAlwaysUseFirst[*rpc.Client]()
@@ -60,12 +59,12 @@ func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecut
 		rpcEndpoints := sflags.MustGetStringArray(cmd, "endpoints")
 		rpcClients := firecoreRPC.NewClients[*rpc.Client](maxBlockFetchDuration, rollingStrategy, logger)
 		for _, rpcEndpoint := range rpcEndpoints {
-			client := rpc.NewClient(rpcEndpoint)
+			client := rpc.NewClient(rpcEndpoint, horizonUrl, logger)
 			rpcClients.Add(client)
 		}
 
 		poller := blockpoller.New(
-			block.NewFetcher(latestBlockRetryInterval, logger),
+			rpc.NewFetcher(fetchInterval, latestBlockRetryInterval, logger),
 			blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block"),
 			rpcClients,
 			blockpoller.WithStoringState[*rpc.Client](stateDir),

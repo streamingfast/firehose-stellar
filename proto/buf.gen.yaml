@@ -1,0 +1,8 @@
+version: v1
+plugins:
+  - plugin: go
+    out: ../pb
+    opt: paths=source_relative
+  - plugin: buf.build/community/planetscale-vtprotobuf:v0.6.0
+    out: ../pb
+    opt: paths=source_relative
