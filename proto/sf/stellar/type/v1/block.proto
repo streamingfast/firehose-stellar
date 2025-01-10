@@ -6,7 +6,32 @@ import "google/protobuf/timestamp.proto";
 
 message Block {
   uint64 number = 1;
-  bytes hash = 2;
+  string hash = 2;
+  string parent_hash = 3;
+
+  // TODO: decode the headerXdr
+  // TODO: decode the metadataXdr
+  
+  repeated Transaction transactions = 5;
+  repeated Event events = 6;
 
   google.protobuf.Timestamp timestamp = 9;
+}
+
+message Transaction {
+  bytes hash = 1;
+  uint64 ledger = 2;
+}
+
+message Event {
+  string type = 1;
+  int32 ledger = 2;
+  string ledger_closed_at = 3;
+  string contract_id = 4;
+  string id = 5;
+  string paging_token = 6;
+  bool in_successful_contract_call = 7;
+  repeated string topic = 8;
+  string value = 9;
+  string tx_hash = 10;
 }

@@ -57,9 +57,9 @@ func fetchRunE(logger *zap.Logger, _ logging.Tracer) firecore.CommandExecutor {
 		rollingStrategy := firecoreRPC.NewRollingStrategyAlwaysUseFirst[*rpc.Client]()
 
 		rpcEndpoints := sflags.MustGetStringArray(cmd, "endpoints")
-		rpcClients := firecoreRPC.NewClients[*rpc.Client](maxBlockFetchDuration, rollingStrategy, logger)
+		rpcClients := firecoreRPC.NewClients(maxBlockFetchDuration, rollingStrategy, logger)
 		for _, rpcEndpoint := range rpcEndpoints {
-			client := rpc.NewClient(rpcEndpoint, horizonUrl, logger)
+			client := rpc.NewClient(rpcEndpoint, logger)
 			rpcClients.Add(client)
 		}
 
