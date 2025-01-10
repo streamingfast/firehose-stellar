@@ -7,31 +7,40 @@ import "google/protobuf/timestamp.proto";
 message Block {
   uint64 number = 1;
   string hash = 2;
-  string parent_hash = 3;
-
-  // TODO: decode the headerXdr
-  // TODO: decode the metadataXdr
+  Header header = 3;
+  // Metadata metadata = 4; // todo: is ther any information in the metadata that is interesting for the user?
   
-  repeated Transaction transactions = 5;
-  repeated Event events = 6;
+  repeated Transaction transactions = 6;
+  repeated Event events = 7;
 
   google.protobuf.Timestamp timestamp = 9;
 }
 
+message Header {
+  uint32 ledger_version = 1;
+  string previous_ledger_hash = 2;
+  // The amount of stroops in existence at the end of the ledger
+  int64 total_coins = 3;
+  uint32 base_fee = 4;
+  uint32 base_reserve = 5;
+}
+
+message Metadata {
+
+}
+
 message Transaction {
-  bytes hash = 1;
-  uint64 ledger = 2;
+  string hash = 1;
 }
 
 message Event {
   string type = 1;
-  int32 ledger = 2;
-  string ledger_closed_at = 3;
-  string contract_id = 4;
-  string id = 5;
-  string paging_token = 6;
-  bool in_successful_contract_call = 7;
-  repeated string topic = 8;
-  string value = 9;
-  string tx_hash = 10;
+  string ledger_closed_at = 2;
+  string contract_id = 3;
+  string id = 4;
+  string paging_token = 5;
+  bool in_successful_contract_call = 6;
+  repeated string topic = 7;
+  string value = 8;
+  string tx_hash = 9;
 }

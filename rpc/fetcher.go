@@ -7,6 +7,7 @@ import (
 	"time"
 
 	pbbstream "github.com/streamingfast/bstream/pb/sf/bstream/v1"
+	"github.com/streamingfast/firehose-stellar/decoder"
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/anypb"
@@ -17,20 +18,26 @@ type LastBlockInfo struct {
 	blockNum uint64
 }
 
+func NewLastBlockInfo() *LastBlockInfo {
+	return &LastBlockInfo{}
+}
+
 type Fetcher struct {
 	fetchInterval            time.Duration
 	latestBlockRetryInterval time.Duration
-	logger                   *zap.Logger
+	lastBlockInfo            *LastBlockInfo
+	decoder                  *decoder.Decoder
 
-	lastBlockInfo *LastBlockInfo
+	logger *zap.Logger
 }
 
 func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, logger *zap.Logger) *Fetcher {
 	return &Fetcher{
 		fetchInterval:            fetchInterval,
 		latestBlockRetryInterval: latestBlockRetryInterval,
+		lastBlockInfo:            NewLastBlockInfo(),
+		decoder:                  decoder.NewDecoder(logger),
 		logger:                   logger,
-		lastBlockInfo:            &LastBlockInfo{},
 	}
 }
 
@@ -71,12 +78,39 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		return nil, false, fmt.Errorf("parsing ledger time: %w", err)
 	}
 
+	ledgerMetadata, err := f.decoder.DecodeLedgerMetadata(ledger[0].MetadataXdr)
+	if err != nil {
+		return nil, false, fmt.Errorf("decoding ledger metadata: %w", err)
+	}
+
+	ledgerHeader := ledgerMetadata.V1.LedgerHeader
+
+	// The number of transactions to fetch when calling the 'getTransactions' RPC method
+	numOfTransactions := len(ledgerMetadata.V1.TxProcessing)
+	transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions)
+	if err != nil {
+		return nil, false, fmt.Errorf("fetching transactions: %w", err)
+	}
+
+	stellarTransactions := make([]*pbstellar.Transaction, 0, len(transactions))
+	for _, trx := range transactions {
+		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
+			Hash: trx.TxHash,
+		})
+	}
+
 	stellarBlk := &pbstellar.Block{
 		Number: ledger[0].Sequence,
 		Hash:   ledger[0].Hash,
-		// ParentHash:   nil, // TODO: fetch the parentHash from the header most probably
-		Transactions: nil,
-		Events:       nil,
+		Header: &pbstellar.Header{
+			LedgerVersion:      uint32(ledgerHeader.Header.LedgerVersion),
+			PreviousLedgerHash: ledgerHeader.Header.PreviousLedgerHash.HexString(),
+			TotalCoins:         int64(ledgerHeader.Header.TotalCoins),
+			BaseFee:            uint32(ledgerHeader.Header.BaseFee),
+			BaseReserve:        uint32(ledgerHeader.Header.BaseReserve),
+		},
+		Transactions: stellarTransactions, // todo: fetch transactions
+		Events:       nil,                 // todo: fetch events
 		Timestamp:    timestamppb.New(time.Unix(ledgerTime, 0)),
 	}
 
@@ -101,7 +135,7 @@ func convertBlock(stellarBlk *pbstellar.Block) (*pbbstream.Block, error) {
 	blk := &pbbstream.Block{
 		Number:    stellarBlk.Number,
 		Id:        stellarBlk.Hash,
-		ParentId:  stellarBlk.ParentHash,
+		ParentId:  stellarBlk.Header.PreviousLedgerHash,
 		Timestamp: timestamppb.New(stellarBlk.Timestamp.AsTime()),
 		LibNum:    stellarBlk.Number - 1, // every block in stellar is final
 		ParentNum: stellarBlk.Number - 1, // every block in stellar is final

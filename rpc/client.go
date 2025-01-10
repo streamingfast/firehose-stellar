@@ -70,9 +70,9 @@ func (c *Client) GetLedgers(startLedgerNum uint64) ([]types.Ledger, error) {
 	return response.Result.Ledgers, nil
 }
 
-// GetTransactions returns the transactions for a given ledger
-func (c *Client) GetTransactions(ledgerNum uint64) ([]types.Transaction, error) {
-	payload := types.NewGetTransactionsRquest(ledgerNum, nil)
+// GetTransactions returns the transactions for a given ledger, it will return successful and failed transactions
+func (c *Client) GetTransactions(ledgerNum uint64, numOfTransactions int) ([]types.Transaction, error) {
+	payload := types.NewGetTransactionsRquest(ledgerNum, types.NewPagination(numOfTransactions, ""))
 
 	rpcBody, err := json.Marshal(payload)
 	if err != nil {

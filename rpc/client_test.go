@@ -26,10 +26,9 @@ func Test_GetLedgers(t *testing.T) {
 
 func Test_GetTransactions(t *testing.T) {
 	c := NewClient(os.Getenv("HORIZON_URL"), nil)
-	ledger, err := c.GetLatestLedger()
+	transactions, err := c.GetTransactions(519386, 6)
 	require.NoError(t, err)
-	_, err = c.GetTransactions(uint64(ledger.Sequence))
-	require.NoError(t, err)
+	require.NotNil(t, transactions)
 }
 
 func Test_GetEvents(t *testing.T) {

@@ -24,6 +24,7 @@ type GetTransactionResponse struct {
 
 type Transaction struct {
 	Status              string   `json:"status"`
+	TxHash              string   `json:"txHash"`
 	ApplicationOrder    int      `json:"applicationOrder"`
 	FeeBump             bool     `json:"feeBump"`
 	EnvelopeXdr         string   `json:"envelopeXdr"`
