@@ -30,7 +30,6 @@ func (m *Block) CloneVT() *Block {
 	r.Number = m.Number
 	r.Hash = m.Hash
 	r.Header = m.Header.CloneVT()
-	r.Metadata = m.Metadata.CloneVT()
 	r.Timestamp = (*timestamppb.Timestamp)((*timestamppb1.Timestamp)(m.Timestamp).CloneVT())
 	if rhs := m.Transactions; rhs != nil {
 		tmpContainer := make([]*Transaction, len(rhs))
@@ -94,13 +93,35 @@ func (m *Metadata) CloneMessageVT() proto.Message {
 	return m.CloneVT()
 }
 
+func (m *Operation) CloneVT() *Operation {
+	if m == nil {
+		return (*Operation)(nil)
+	}
+	r := new(Operation)
+	if len(m.unknownFields) > 0 {
+		r.unknownFields = make([]byte, len(m.unknownFields))
+		copy(r.unknownFields, m.unknownFields)
+	}
+	return r
+}
+
+func (m *Operation) CloneMessageVT() proto.Message {
+	return m.CloneVT()
+}
+
 func (m *Transaction) CloneVT() *Transaction {
 	if m == nil {
 		return (*Transaction)(nil)
 	}
 	r := new(Transaction)
 	r.Hash = m.Hash
-	r.Ledger = m.Ledger
+	if rhs := m.Operations; rhs != nil {
+		tmpContainer := make([]*Operation, len(rhs))
+		for k, v := range rhs {
+			tmpContainer[k] = v.CloneVT()
+		}
+		r.Operations = tmpContainer
+	}
 	if len(m.unknownFields) > 0 {
 		r.unknownFields = make([]byte, len(m.unknownFields))
 		copy(r.unknownFields, m.unknownFields)
@@ -118,7 +139,6 @@ func (m *Event) CloneVT() *Event {
 	}
 	r := new(Event)
 	r.Type = m.Type
-	r.Ledger = m.Ledger
 	r.LedgerClosedAt = m.LedgerClosedAt
 	r.ContractId = m.ContractId
 	r.Id = m.Id
@@ -155,9 +175,6 @@ func (this *Block) EqualVT(that *Block) bool {
 		return false
 	}
 	if !this.Header.EqualVT(that.Header) {
-		return false
-	}
-	if !this.Metadata.EqualVT(that.Metadata) {
 		return false
 	}
 	if len(this.Transactions) != len(that.Transactions) {
@@ -254,6 +271,22 @@ func (this *Metadata) EqualMessageVT(thatMsg proto.Message) bool {
 	}
 	return this.EqualVT(that)
 }
+func (this *Operation) EqualVT(that *Operation) bool {
+	if this == that {
+		return true
+	} else if this == nil || that == nil {
+		return false
+	}
+	return string(this.unknownFields) == string(that.unknownFields)
+}
+
+func (this *Operation) EqualMessageVT(thatMsg proto.Message) bool {
+	that, ok := thatMsg.(*Operation)
+	if !ok {
+		return false
+	}
+	return this.EqualVT(that)
+}
 func (this *Transaction) EqualVT(that *Transaction) bool {
 	if this == that {
 		return true
@@ -263,8 +296,22 @@ func (this *Transaction) EqualVT(that *Transaction) bool {
 	if this.Hash != that.Hash {
 		return false
 	}
-	if this.Ledger != that.Ledger {
+	if len(this.Operations) != len(that.Operations) {
 		return false
+	}
+	for i, vx := range this.Operations {
+		vy := that.Operations[i]
+		if p, q := vx, vy; p != q {
+			if p == nil {
+				p = &Operation{}
+			}
+			if q == nil {
+				q = &Operation{}
+			}
+			if !p.EqualVT(q) {
+				return false
+			}
+		}
 	}
 	return string(this.unknownFields) == string(that.unknownFields)
 }
@@ -283,9 +330,6 @@ func (this *Event) EqualVT(that *Event) bool {
 		return false
 	}
 	if this.Type != that.Type {
-		return false
-	}
-	if this.Ledger != that.Ledger {
 		return false
 	}
 	if this.LedgerClosedAt != that.LedgerClosedAt {
@@ -391,16 +435,6 @@ func (m *Block) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			i--
 			dAtA[i] = 0x32
 		}
-	}
-	if m.Metadata != nil {
-		size, err := m.Metadata.MarshalToSizedBufferVT(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(size))
-		i--
-		dAtA[i] = 0x22
 	}
 	if m.Header != nil {
 		size, err := m.Header.MarshalToSizedBufferVT(dAtA[:i])
@@ -520,6 +554,39 @@ func (m *Metadata) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *Operation) MarshalVT() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVT(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Operation) MarshalToVT(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVT(dAtA[:size])
+}
+
+func (m *Operation) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *Transaction) MarshalVT() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -550,10 +617,17 @@ func (m *Transaction) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.Ledger != 0 {
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.Ledger))
-		i--
-		dAtA[i] = 0x10
+	if len(m.Operations) > 0 {
+		for iNdEx := len(m.Operations) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.Operations[iNdEx].MarshalToSizedBufferVT(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = protohelpers.EncodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x12
+		}
 	}
 	if len(m.Hash) > 0 {
 		i -= len(m.Hash)
@@ -600,14 +674,14 @@ func (m *Event) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.TxHash)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.TxHash)))
 		i--
-		dAtA[i] = 0x52
+		dAtA[i] = 0x4a
 	}
 	if len(m.Value) > 0 {
 		i -= len(m.Value)
 		copy(dAtA[i:], m.Value)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.Value)))
 		i--
-		dAtA[i] = 0x4a
+		dAtA[i] = 0x42
 	}
 	if len(m.Topic) > 0 {
 		for iNdEx := len(m.Topic) - 1; iNdEx >= 0; iNdEx-- {
@@ -615,7 +689,7 @@ func (m *Event) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			copy(dAtA[i:], m.Topic[iNdEx])
 			i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.Topic[iNdEx])))
 			i--
-			dAtA[i] = 0x42
+			dAtA[i] = 0x3a
 		}
 	}
 	if m.InSuccessfulContractCall {
@@ -626,40 +700,35 @@ func (m *Event) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 			dAtA[i] = 0
 		}
 		i--
-		dAtA[i] = 0x38
+		dAtA[i] = 0x30
 	}
 	if len(m.PagingToken) > 0 {
 		i -= len(m.PagingToken)
 		copy(dAtA[i:], m.PagingToken)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.PagingToken)))
 		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x2a
 	}
 	if len(m.Id) > 0 {
 		i -= len(m.Id)
 		copy(dAtA[i:], m.Id)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.Id)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x22
 	}
 	if len(m.ContractId) > 0 {
 		i -= len(m.ContractId)
 		copy(dAtA[i:], m.ContractId)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.ContractId)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x1a
 	}
 	if len(m.LedgerClosedAt) > 0 {
 		i -= len(m.LedgerClosedAt)
 		copy(dAtA[i:], m.LedgerClosedAt)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.LedgerClosedAt)))
 		i--
-		dAtA[i] = 0x1a
-	}
-	if m.Ledger != 0 {
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.Ledger))
-		i--
-		dAtA[i] = 0x10
+		dAtA[i] = 0x12
 	}
 	if len(m.Type) > 0 {
 		i -= len(m.Type)
@@ -734,16 +803,6 @@ func (m *Block) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 			i--
 			dAtA[i] = 0x32
 		}
-	}
-	if m.Metadata != nil {
-		size, err := m.Metadata.MarshalToSizedBufferVTStrict(dAtA[:i])
-		if err != nil {
-			return 0, err
-		}
-		i -= size
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(size))
-		i--
-		dAtA[i] = 0x22
 	}
 	if m.Header != nil {
 		size, err := m.Header.MarshalToSizedBufferVTStrict(dAtA[:i])
@@ -863,6 +922,39 @@ func (m *Metadata) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 	return len(dAtA) - i, nil
 }
 
+func (m *Operation) MarshalVTStrict() (dAtA []byte, err error) {
+	if m == nil {
+		return nil, nil
+	}
+	size := m.SizeVT()
+	dAtA = make([]byte, size)
+	n, err := m.MarshalToSizedBufferVTStrict(dAtA[:size])
+	if err != nil {
+		return nil, err
+	}
+	return dAtA[:n], nil
+}
+
+func (m *Operation) MarshalToVTStrict(dAtA []byte) (int, error) {
+	size := m.SizeVT()
+	return m.MarshalToSizedBufferVTStrict(dAtA[:size])
+}
+
+func (m *Operation) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
+	if m == nil {
+		return 0, nil
+	}
+	i := len(dAtA)
+	_ = i
+	var l int
+	_ = l
+	if m.unknownFields != nil {
+		i -= len(m.unknownFields)
+		copy(dAtA[i:], m.unknownFields)
+	}
+	return len(dAtA) - i, nil
+}
+
 func (m *Transaction) MarshalVTStrict() (dAtA []byte, err error) {
 	if m == nil {
 		return nil, nil
@@ -893,10 +985,17 @@ func (m *Transaction) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 		i -= len(m.unknownFields)
 		copy(dAtA[i:], m.unknownFields)
 	}
-	if m.Ledger != 0 {
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.Ledger))
-		i--
-		dAtA[i] = 0x10
+	if len(m.Operations) > 0 {
+		for iNdEx := len(m.Operations) - 1; iNdEx >= 0; iNdEx-- {
+			size, err := m.Operations[iNdEx].MarshalToSizedBufferVTStrict(dAtA[:i])
+			if err != nil {
+				return 0, err
+			}
+			i -= size
+			i = protohelpers.EncodeVarint(dAtA, i, uint64(size))
+			i--
+			dAtA[i] = 0x12
+		}
 	}
 	if len(m.Hash) > 0 {
 		i -= len(m.Hash)
@@ -943,14 +1042,14 @@ func (m *Event) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 		copy(dAtA[i:], m.TxHash)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.TxHash)))
 		i--
-		dAtA[i] = 0x52
+		dAtA[i] = 0x4a
 	}
 	if len(m.Value) > 0 {
 		i -= len(m.Value)
 		copy(dAtA[i:], m.Value)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.Value)))
 		i--
-		dAtA[i] = 0x4a
+		dAtA[i] = 0x42
 	}
 	if len(m.Topic) > 0 {
 		for iNdEx := len(m.Topic) - 1; iNdEx >= 0; iNdEx-- {
@@ -958,7 +1057,7 @@ func (m *Event) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 			copy(dAtA[i:], m.Topic[iNdEx])
 			i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.Topic[iNdEx])))
 			i--
-			dAtA[i] = 0x42
+			dAtA[i] = 0x3a
 		}
 	}
 	if m.InSuccessfulContractCall {
@@ -969,40 +1068,35 @@ func (m *Event) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 			dAtA[i] = 0
 		}
 		i--
-		dAtA[i] = 0x38
+		dAtA[i] = 0x30
 	}
 	if len(m.PagingToken) > 0 {
 		i -= len(m.PagingToken)
 		copy(dAtA[i:], m.PagingToken)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.PagingToken)))
 		i--
-		dAtA[i] = 0x32
+		dAtA[i] = 0x2a
 	}
 	if len(m.Id) > 0 {
 		i -= len(m.Id)
 		copy(dAtA[i:], m.Id)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.Id)))
 		i--
-		dAtA[i] = 0x2a
+		dAtA[i] = 0x22
 	}
 	if len(m.ContractId) > 0 {
 		i -= len(m.ContractId)
 		copy(dAtA[i:], m.ContractId)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.ContractId)))
 		i--
-		dAtA[i] = 0x22
+		dAtA[i] = 0x1a
 	}
 	if len(m.LedgerClosedAt) > 0 {
 		i -= len(m.LedgerClosedAt)
 		copy(dAtA[i:], m.LedgerClosedAt)
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.LedgerClosedAt)))
 		i--
-		dAtA[i] = 0x1a
-	}
-	if m.Ledger != 0 {
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(m.Ledger))
-		i--
-		dAtA[i] = 0x10
+		dAtA[i] = 0x12
 	}
 	if len(m.Type) > 0 {
 		i -= len(m.Type)
@@ -1029,10 +1123,6 @@ func (m *Block) SizeVT() (n int) {
 	}
 	if m.Header != nil {
 		l = m.Header.SizeVT()
-		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
-	}
-	if m.Metadata != nil {
-		l = m.Metadata.SizeVT()
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
 	if len(m.Transactions) > 0 {
@@ -1091,6 +1181,16 @@ func (m *Metadata) SizeVT() (n int) {
 	return n
 }
 
+func (m *Operation) SizeVT() (n int) {
+	if m == nil {
+		return 0
+	}
+	var l int
+	_ = l
+	n += len(m.unknownFields)
+	return n
+}
+
 func (m *Transaction) SizeVT() (n int) {
 	if m == nil {
 		return 0
@@ -1101,8 +1201,11 @@ func (m *Transaction) SizeVT() (n int) {
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
-	if m.Ledger != 0 {
-		n += 1 + protohelpers.SizeOfVarint(uint64(m.Ledger))
+	if len(m.Operations) > 0 {
+		for _, e := range m.Operations {
+			l = e.SizeVT()
+			n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
+		}
 	}
 	n += len(m.unknownFields)
 	return n
@@ -1117,9 +1220,6 @@ func (m *Event) SizeVT() (n int) {
 	l = len(m.Type)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
-	}
-	if m.Ledger != 0 {
-		n += 1 + protohelpers.SizeOfVarint(uint64(m.Ledger))
 	}
 	l = len(m.LedgerClosedAt)
 	if l > 0 {
@@ -1271,42 +1371,6 @@ func (m *Block) UnmarshalVT(dAtA []byte) error {
 				m.Header = &Header{}
 			}
 			if err := m.Header.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Metadata", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Metadata == nil {
-				m.Metadata = &Metadata{}
-			}
-			if err := m.Metadata.UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -1646,6 +1710,57 @@ func (m *Metadata) UnmarshalVT(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *Operation) UnmarshalVT(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return protohelpers.ErrIntOverflow
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Operation: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Operation: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := protohelpers.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *Transaction) UnmarshalVT(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -1708,10 +1823,10 @@ func (m *Transaction) UnmarshalVT(dAtA []byte) error {
 			m.Hash = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ledger", wireType)
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Operations", wireType)
 			}
-			m.Ledger = 0
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return protohelpers.ErrIntOverflow
@@ -1721,11 +1836,26 @@ func (m *Transaction) UnmarshalVT(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Ledger |= uint64(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if msglen < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Operations = append(m.Operations, &Operation{})
+			if err := m.Operations[len(m.Operations)-1].UnmarshalVT(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])
@@ -1810,25 +1940,6 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 			m.Type = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
 		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ledger", wireType)
-			}
-			m.Ledger = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Ledger |= int32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LedgerClosedAt", wireType)
 			}
@@ -1860,7 +1971,7 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 			}
 			m.LedgerClosedAt = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 4:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ContractId", wireType)
 			}
@@ -1892,7 +2003,7 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 			}
 			m.ContractId = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 5:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
 			}
@@ -1924,7 +2035,7 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Id = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 6:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PagingToken", wireType)
 			}
@@ -1956,7 +2067,7 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 			}
 			m.PagingToken = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 7:
+		case 6:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field InSuccessfulContractCall", wireType)
 			}
@@ -1976,7 +2087,7 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 				}
 			}
 			m.InSuccessfulContractCall = bool(v != 0)
-		case 8:
+		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Topic", wireType)
 			}
@@ -2008,7 +2119,7 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Topic = append(m.Topic, string(dAtA[iNdEx:postIndex]))
 			iNdEx = postIndex
-		case 9:
+		case 8:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
 			}
@@ -2040,7 +2151,7 @@ func (m *Event) UnmarshalVT(dAtA []byte) error {
 			}
 			m.Value = string(dAtA[iNdEx:postIndex])
 			iNdEx = postIndex
-		case 10:
+		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field TxHash", wireType)
 			}
@@ -2211,42 +2322,6 @@ func (m *Block) UnmarshalVTUnsafe(dAtA []byte) error {
 				m.Header = &Header{}
 			}
 			if err := m.Header.UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
-				return err
-			}
-			iNdEx = postIndex
-		case 4:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Metadata", wireType)
-			}
-			var msglen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				msglen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if msglen < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			postIndex := iNdEx + msglen
-			if postIndex < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			if m.Metadata == nil {
-				m.Metadata = &Metadata{}
-			}
-			if err := m.Metadata.UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
 				return err
 			}
 			iNdEx = postIndex
@@ -2590,6 +2665,57 @@ func (m *Metadata) UnmarshalVTUnsafe(dAtA []byte) error {
 	}
 	return nil
 }
+func (m *Operation) UnmarshalVTUnsafe(dAtA []byte) error {
+	l := len(dAtA)
+	iNdEx := 0
+	for iNdEx < l {
+		preIndex := iNdEx
+		var wire uint64
+		for shift := uint(0); ; shift += 7 {
+			if shift >= 64 {
+				return protohelpers.ErrIntOverflow
+			}
+			if iNdEx >= l {
+				return io.ErrUnexpectedEOF
+			}
+			b := dAtA[iNdEx]
+			iNdEx++
+			wire |= uint64(b&0x7F) << shift
+			if b < 0x80 {
+				break
+			}
+		}
+		fieldNum := int32(wire >> 3)
+		wireType := int(wire & 0x7)
+		if wireType == 4 {
+			return fmt.Errorf("proto: Operation: wiretype end group for non-group")
+		}
+		if fieldNum <= 0 {
+			return fmt.Errorf("proto: Operation: illegal tag %d (wire type %d)", fieldNum, wire)
+		}
+		switch fieldNum {
+		default:
+			iNdEx = preIndex
+			skippy, err := protohelpers.Skip(dAtA[iNdEx:])
+			if err != nil {
+				return err
+			}
+			if (skippy < 0) || (iNdEx+skippy) < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			if (iNdEx + skippy) > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.unknownFields = append(m.unknownFields, dAtA[iNdEx:iNdEx+skippy]...)
+			iNdEx += skippy
+		}
+	}
+
+	if iNdEx > l {
+		return io.ErrUnexpectedEOF
+	}
+	return nil
+}
 func (m *Transaction) UnmarshalVTUnsafe(dAtA []byte) error {
 	l := len(dAtA)
 	iNdEx := 0
@@ -2656,10 +2782,10 @@ func (m *Transaction) UnmarshalVTUnsafe(dAtA []byte) error {
 			m.Hash = stringValue
 			iNdEx = postIndex
 		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ledger", wireType)
+			if wireType != 2 {
+				return fmt.Errorf("proto: wrong wireType = %d for field Operations", wireType)
 			}
-			m.Ledger = 0
+			var msglen int
 			for shift := uint(0); ; shift += 7 {
 				if shift >= 64 {
 					return protohelpers.ErrIntOverflow
@@ -2669,11 +2795,26 @@ func (m *Transaction) UnmarshalVTUnsafe(dAtA []byte) error {
 				}
 				b := dAtA[iNdEx]
 				iNdEx++
-				m.Ledger |= uint64(b&0x7F) << shift
+				msglen |= int(b&0x7F) << shift
 				if b < 0x80 {
 					break
 				}
 			}
+			if msglen < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			postIndex := iNdEx + msglen
+			if postIndex < 0 {
+				return protohelpers.ErrInvalidLength
+			}
+			if postIndex > l {
+				return io.ErrUnexpectedEOF
+			}
+			m.Operations = append(m.Operations, &Operation{})
+			if err := m.Operations[len(m.Operations)-1].UnmarshalVTUnsafe(dAtA[iNdEx:postIndex]); err != nil {
+				return err
+			}
+			iNdEx = postIndex
 		default:
 			iNdEx = preIndex
 			skippy, err := protohelpers.Skip(dAtA[iNdEx:])
@@ -2762,25 +2903,6 @@ func (m *Event) UnmarshalVTUnsafe(dAtA []byte) error {
 			m.Type = stringValue
 			iNdEx = postIndex
 		case 2:
-			if wireType != 0 {
-				return fmt.Errorf("proto: wrong wireType = %d for field Ledger", wireType)
-			}
-			m.Ledger = 0
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				m.Ledger |= int32(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field LedgerClosedAt", wireType)
 			}
@@ -2816,7 +2938,7 @@ func (m *Event) UnmarshalVTUnsafe(dAtA []byte) error {
 			}
 			m.LedgerClosedAt = stringValue
 			iNdEx = postIndex
-		case 4:
+		case 3:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field ContractId", wireType)
 			}
@@ -2852,7 +2974,7 @@ func (m *Event) UnmarshalVTUnsafe(dAtA []byte) error {
 			}
 			m.ContractId = stringValue
 			iNdEx = postIndex
-		case 5:
+		case 4:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Id", wireType)
 			}
@@ -2888,7 +3010,7 @@ func (m *Event) UnmarshalVTUnsafe(dAtA []byte) error {
 			}
 			m.Id = stringValue
 			iNdEx = postIndex
-		case 6:
+		case 5:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field PagingToken", wireType)
 			}
@@ -2924,7 +3046,7 @@ func (m *Event) UnmarshalVTUnsafe(dAtA []byte) error {
 			}
 			m.PagingToken = stringValue
 			iNdEx = postIndex
-		case 7:
+		case 6:
 			if wireType != 0 {
 				return fmt.Errorf("proto: wrong wireType = %d for field InSuccessfulContractCall", wireType)
 			}
@@ -2944,7 +3066,7 @@ func (m *Event) UnmarshalVTUnsafe(dAtA []byte) error {
 				}
 			}
 			m.InSuccessfulContractCall = bool(v != 0)
-		case 8:
+		case 7:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Topic", wireType)
 			}
@@ -2980,7 +3102,7 @@ func (m *Event) UnmarshalVTUnsafe(dAtA []byte) error {
 			}
 			m.Topic = append(m.Topic, stringValue)
 			iNdEx = postIndex
-		case 9:
+		case 8:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field Value", wireType)
 			}
@@ -3016,7 +3138,7 @@ func (m *Event) UnmarshalVTUnsafe(dAtA []byte) error {
 			}
 			m.Value = stringValue
 			iNdEx = postIndex
-		case 10:
+		case 9:
 			if wireType != 2 {
 				return fmt.Errorf("proto: wrong wireType = %d for field TxHash", wireType)
 			}

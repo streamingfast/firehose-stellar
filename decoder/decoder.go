@@ -30,7 +30,50 @@ func (d *Decoder) DecodeLedgerMetadata(metadataXdr string) (*xdrTypes.LedgerClos
 	var ledgerMetadata xdrTypes.LedgerCloseMeta
 	_, err = xdr.Unmarshal(bytes.NewBuffer(data), &ledgerMetadata)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal XDR: %w", err)
+		return nil, fmt.Errorf("failed to unmarshal ledger metadata XDR: %w", err)
 	}
 	return &ledgerMetadata, nil
+}
+
+func (d *Decoder) DecodeTransactionEnvelope(envelopeXdr string) (*xdrTypes.TransactionEnvelope, error) {
+	data, err := base64.StdEncoding.DecodeString(envelopeXdr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	var envelope xdrTypes.TransactionEnvelope
+	_, err = xdr.Unmarshal(bytes.NewBuffer(data), &envelope)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal transaction envelope XDR: %w", err)
+	}
+	return &envelope, nil
+}
+
+// TODO: convert all the result types of the operations in their protobuf equivalent
+func (d *Decoder) DecodeTransactionResult(resultXdr string) (*xdrTypes.TransactionResult, error) {
+	data, err := base64.StdEncoding.DecodeString(resultXdr)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	var result xdrTypes.TransactionResult
+	_, err = xdr.Unmarshal(bytes.NewBuffer(data), &result)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal transaction result XDR: %w", err)
+	}
+	return &result, nil
+}
+
+func (d *Decoder) DecodeTransactionResultMeta(resultMetaXd string) (*xdrTypes.TransactionMeta, error) {
+	data, err := base64.StdEncoding.DecodeString(resultMetaXd)
+	if err != nil {
+		return nil, fmt.Errorf("failed to decode base64: %w", err)
+	}
+
+	var transactionMeta xdrTypes.TransactionMeta
+	_, err = xdr.Unmarshal(bytes.NewBuffer(data), &transactionMeta)
+	if err != nil {
+		return nil, fmt.Errorf("failed to unmarshal transaction meta XDR: %w", err)
+	}
+	return &transactionMeta, nil
 }

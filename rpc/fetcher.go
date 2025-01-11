@@ -99,6 +99,15 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		})
 	}
 
+	// TODO: events are only available on soroban smart contracts
+	// TODO: once the transaction is decoded, find the number of events and call the
+	// 	'getEvents' RPC method to fetch the events and then decode it
+
+	// events, err := client.GetEvents(requestBlockNum)
+	// if err != nil {
+	// 	return nil, false, fmt.Errorf("fetching events: %w", err)
+	// }
+
 	stellarBlk := &pbstellar.Block{
 		Number: ledger[0].Sequence,
 		Hash:   ledger[0].Hash,

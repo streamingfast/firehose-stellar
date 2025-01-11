@@ -29,8 +29,13 @@ message Metadata {
 
 }
 
+message Operation {
+
+}
+
 message Transaction {
   string hash = 1;
+  repeated Operation operations = 2;
 }
 
 message Event {
