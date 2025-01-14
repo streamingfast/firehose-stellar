@@ -9,6 +9,7 @@ import (
 	pbbstream "github.com/streamingfast/bstream/pb/sf/bstream/v1"
 	"github.com/streamingfast/firehose-stellar/decoder"
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
+	"github.com/streamingfast/firehose-stellar/types"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -16,6 +17,7 @@ import (
 
 type LastBlockInfo struct {
 	blockNum uint64
+	cursor   string
 }
 
 func NewLastBlockInfo() *LastBlockInfo {
@@ -87,19 +89,53 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	// The number of transactions to fetch when calling the 'getTransactions' RPC method
 	numOfTransactions := len(ledgerMetadata.V1.TxProcessing)
-	transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions)
+	lastCursor, transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching transactions: %w", err)
 	}
 
-	stellarTransactions := make([]*pbstellar.Transaction, 0, len(transactions))
-	for _, trx := range transactions {
-		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
-			Hash: trx.TxHash,
-		})
+	if lastCursor != "" {
+		f.lastBlockInfo.cursor = lastCursor
 	}
 
-	// TODO: events are only available on soroban smart contracts
+	decodedTransactionMeta := make([]*types.TransactionMeta, 0)
+	for _, trx := range transactions {
+		trxMeta, err := f.decoder.DecodeTransactionResultMeta(trx.ResultMetaXdr)
+		if err != nil {
+			return nil, false, fmt.Errorf("decoding transaction result meta for trx %s: %w", trx.TxHash, err)
+		}
+
+		decodedTransactionMeta = append(decodedTransactionMeta, types.NewTransactionMeta(trx.TxHash, trxMeta))
+	}
+
+	// contractEvents := make([]*pbstellar.ContractEvent, 0)
+	sorobanEvents := make([]*pbstellar.ContractEvent, 0)
+	stellarTransactions := make([]*pbstellar.Transaction, 0)
+
+	for _, trx := range decodedTransactionMeta {
+		trxMeta, ok := trx.Meta.GetV3()
+		if !ok {
+			f.logger.Debug("transaction meta not v3", zap.String("tx_hash", trx.Hash))
+			continue
+		}
+
+		if trxMeta.SorobanMeta != nil && trxMeta.SorobanMeta.Events != nil {
+			for _, event := range trxMeta.SorobanMeta.Events {
+				contractEvent := &pbstellar.ContractEvent{
+					ContractId: event.ContractId.HexString(),
+					Type:       pbstellar.FromXdrContactEventType(event.Type),
+					// TODO: check how we want to add the eventBody? (raw bytes or all the data decoded)
+				}
+				sorobanEvents = append(sorobanEvents, contractEvent)
+			}
+		}
+
+		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
+			Hash: trx.Hash,
+		})
+
+	}
+
 	// TODO: once the transaction is decoded, find the number of events and call the
 	// 	'getEvents' RPC method to fetch the events and then decode it
 
@@ -118,8 +154,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			BaseFee:            uint32(ledgerHeader.Header.BaseFee),
 			BaseReserve:        uint32(ledgerHeader.Header.BaseReserve),
 		},
-		Transactions: stellarTransactions, // todo: fetch transactions
-		Events:       nil,                 // todo: fetch events
+		Transactions: stellarTransactions,
 		Timestamp:    timestamppb.New(time.Unix(ledgerTime, 0)),
 	}
 

@@ -1,5 +1,9 @@
 package types
 
+import (
+	xdrTypes "github.com/stellar/go/xdr"
+)
+
 type GetTransactionsRquest struct {
 	JSONRPC string `json:"jsonrpc"`
 	ID      int    `json:"id"`
@@ -29,6 +33,7 @@ type Transaction struct {
 	FeeBump             bool     `json:"feeBump"`
 	EnvelopeXdr         string   `json:"envelopeXdr"`
 	ResultXdr           string   `json:"resultXdr"`
+	ResultMetaXdr       string   `json:"resultMetaXdr"`
 	DiagnosticEventsXdr []string `json:"diagnosticEventsXdr"`
 	Ledger              uint64   `json:"ledger"`
 	CreatedAt           uint64   `json:"createdAt"`
@@ -40,4 +45,17 @@ type GetTransactionsResult struct {
 	LatestLedgerCloseTimestamp uint64        `json:"latestLedgerCloseTimestamp"`
 	OldestLedger               uint64        `json:"oldestLedger"`
 	OldestLedgerCloseTimestamp uint64        `json:"oldestLedgerCloseTimestamp"`
+	Cursor                     string        `json:"cursor"`
+}
+
+type TransactionMeta struct {
+	Hash string
+	Meta *xdrTypes.TransactionMeta
+}
+
+func NewTransactionMeta(hash string, meta *xdrTypes.TransactionMeta) *TransactionMeta {
+	return &TransactionMeta{
+		Hash: hash,
+		Meta: meta,
+	}
 }

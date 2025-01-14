@@ -70,32 +70,67 @@ func (c *Client) GetLedgers(startLedgerNum uint64) ([]types.Ledger, error) {
 	return response.Result.Ledgers, nil
 }
 
+// TODO: find out the limit from the RPC Provider and set it in the pagination or should we use the value
+// 		from the header metadata of the ledger which gives out a number of transactions per ledger
+
 // GetTransactions returns the transactions for a given ledger, it will return successful and failed transactions
-func (c *Client) GetTransactions(ledgerNum uint64, numOfTransactions int) ([]types.Transaction, error) {
-	payload := types.NewGetTransactionsRquest(ledgerNum, types.NewPagination(numOfTransactions, ""))
+func (c *Client) GetTransactions(ledgerNum uint64, limit int, lastCursor string) (string, []types.Transaction, error) {
+	transactions := make([]types.Transaction, 0)
+
+	for {
+		currentCursor, fetchedTransactions, err := c.getTransactions(ledgerNum, limit, lastCursor)
+		if err != nil {
+			return lastCursor, nil, fmt.Errorf("failed to get transactions: %w", err)
+		}
+
+		allTransactionsFetched := len(fetchedTransactions) == 0 || currentCursor == ""
+
+		for _, f := range fetchedTransactions {
+			if f.Ledger != ledgerNum {
+				allTransactionsFetched = true
+				break
+			}
+			transactions = append(transactions, f)
+		}
+
+		if allTransactionsFetched {
+			break
+		}
+		lastCursor = currentCursor
+	}
+
+	return lastCursor, transactions, nil
+}
+
+func (c *Client) getTransactions(ledgerNum uint64, limit int, cursor string) (string, []types.Transaction, error) {
+	payload := types.NewGetTransactionsRquest(ledgerNum, types.NewPagination(limit, cursor))
 
 	rpcBody, err := json.Marshal(payload)
 	if err != nil {
-		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+		return cursor, nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
 	body, err := c.makeRquest(rpcBody)
 	if err != nil {
-		return nil, fmt.Errorf("failed to get transactions: %w", err)
+		return cursor, nil, fmt.Errorf("failed to get transactions: %w", err)
 	}
 
 	var transactions types.GetTransactionResponse
 	err = json.Unmarshal(body, &transactions)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return cursor, nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
 	}
 
-	return transactions.Result.Transactions, nil
+	cursor = transactions.Result.Cursor
+	return cursor, transactions.Result.Transactions, nil
 }
 
+// TODO: handle the cursor in the same way as the cursor in GetTransactions
+// 		need the feedback from Sid on the events
+
 // GetEvents returns the events for a given ledger
-func (c *Client) GetEvents(ledgerNum uint64) ([]*types.Event, error) {
-	payload := types.NewEventsRequest(ledgerNum, nil)
+func (c *Client) GetEvents(ledgerNum uint64, numOfEvents int) ([]*types.Event, error) {
+	payload := types.NewEventsRequest(ledgerNum, types.NewPagination(numOfEvents, ""))
 
 	rpcBody, err := json.Marshal(payload)
 	if err != nil {
