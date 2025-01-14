@@ -14,7 +14,7 @@ func Test_DecodeLedgerMetadata(t *testing.T) {
 	require.NotNil(t, ledgerMetadata)
 }
 
-func Test_DecodeTransactionEnvelop(t *testing.T) {
+func Test_DecodeTransactionEnvelope(t *testing.T) {
 	decoder := NewDecoder(zap.NewNop())
 	transactionMetadata, err := decoder.DecodeTransactionEnvelope("AAAAAgAAAADyvToLvJe06EXPqSQgBWS0Rr++8SCKj8AlBdBDyKGwBQAPQkAAAADHAAAAXQAAAAEAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAEAAAABAAAAABB90WssODNIgi6BHveqzxTRmIpvAFRyVNM+Hm2GVuCcAAAAAAAAAABmkq+rlsv67UKM7Q84yVjMbo6QHeQfZqz28PRJN8VcNAAAABdIdugAAAAAAAAAAALIobAFAAAAQNHROVl4rVJucGsenB+iXDjIcTqsh9UIelxGuou+N55kNiFXlj6MQc7eUSjBj3cYXlwVDycLNZlSZTHqh0b+MQ2GVuCcAAAAQH1XAOqFZxkpsTiPPcg2J0A/BI96Wpp+8OBa69Gaxri0xQ4pLdn6x6D5YrhDLY1gLQdBhi3gpf5LLO5XLw0Aawc=")
 	require.NoError(t, err)
