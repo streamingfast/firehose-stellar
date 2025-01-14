@@ -6,8 +6,12 @@ type Params struct {
 }
 
 func NewParams(startLedger uint64, pagination *Pagination) Params {
-	return Params{
-		StartLedger: startLedger,
-		Pagination:  pagination,
+	params := Params{
+		Pagination: pagination,
 	}
+
+	if pagination.Cursor == "" {
+		params.StartLedger = startLedger
+	}
+	return params
 }

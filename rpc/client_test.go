@@ -26,8 +26,17 @@ func Test_GetLedgers(t *testing.T) {
 
 func Test_GetTransactions(t *testing.T) {
 	c := NewClient(os.Getenv("HORIZON_URL"), nil)
-	lastCursor, transactions, err := c.GetTransactions(519386, 6, "")
+	cursor, transactions, err := c.GetTransactions(55253344, 100, "")
 	require.NoError(t, err)
 	require.NotNil(t, transactions)
-	require.NotEmpty(t, lastCursor)
+	require.Equal(t, 140, len(transactions))
+	require.NotEmpty(t, cursor)
+}
+
+func Test_GetEvents(t *testing.T) {
+	c := NewClient(os.Getenv("HORIZON_URL"), nil)
+	cursor, events, err := c.GetEvents(55253344, 100, "")
+	require.NoError(t, err)
+	require.NotEmpty(t, events)
+	require.NotEmpty(t, cursor)
 }

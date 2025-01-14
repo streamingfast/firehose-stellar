@@ -49,13 +49,25 @@ type GetTransactionsResult struct {
 }
 
 type TransactionMeta struct {
-	Hash string
-	Meta *xdrTypes.TransactionMeta
+	Hash          string
+	Status        string
+	ResultXdr     string
+	ResultMetaXdr string
+	Meta          *xdrTypes.TransactionMeta
 }
 
-func NewTransactionMeta(hash string, meta *xdrTypes.TransactionMeta) *TransactionMeta {
+func NewTransactionMeta(
+	hash string,
+	status string,
+	resultXdr string,
+	resultMetaXdr string,
+	meta *xdrTypes.TransactionMeta,
+) *TransactionMeta {
 	return &TransactionMeta{
-		Hash: hash,
-		Meta: meta,
+		Hash:          hash,
+		Status:        status,
+		ResultXdr:     resultXdr,
+		ResultMetaXdr: resultMetaXdr,
+		Meta:          meta,
 	}
 }

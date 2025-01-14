@@ -7,10 +7,10 @@ type EventsParams struct {
 }
 
 type EventsRequest struct {
-	JSONRPC string        `json:"jsonrpc"`
-	ID      int           `json:"id"`
-	Method  string        `json:"method"`
-	Params  *EventsParams `json:"params"`
+	JSONRPC string `json:"jsonrpc"`
+	ID      int    `json:"id"`
+	Method  string `json:"method"`
+	Params  Params `json:"params"`
 }
 
 func NewEventsRequest(startLedger uint64, pagination *Pagination) EventsRequest {
@@ -18,11 +18,7 @@ func NewEventsRequest(startLedger uint64, pagination *Pagination) EventsRequest 
 		JSONRPC: "2.0",
 		ID:      1,
 		Method:  "getEvents",
-		Params: &EventsParams{
-			StartLedger: startLedger,
-			EndLedger:   startLedger + 1,
-			Pagination:  pagination,
-		},
+		Params:  NewParams(startLedger, pagination),
 	}
 }
 
@@ -34,7 +30,7 @@ type GetEventsResponse struct {
 
 type Event struct {
 	Type                     string   `json:"type"`
-	Ledger                   int      `json:"ledger"`
+	Ledger                   uint64   `json:"ledger"`
 	LedgerClosedAt           string   `json:"ledgerClosedAt"`
 	ContractID               string   `json:"contractId"`
 	ID                       string   `json:"id"`
@@ -46,7 +42,7 @@ type Event struct {
 }
 
 type GetEventsResult struct {
-	LatestLedger int      `json:"latestLedger"`
-	Events       []*Event `json:"events"`
-	Cursor       string   `json:"cursor"`
+	LatestLedger int     `json:"latestLedger"`
+	Events       []Event `json:"events"`
+	Cursor       string  `json:"cursor"`
 }

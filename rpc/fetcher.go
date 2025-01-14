@@ -105,14 +105,14 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			return nil, false, fmt.Errorf("decoding transaction result meta for trx %s: %w", trx.TxHash, err)
 		}
 
-		decodedTransactionMeta = append(decodedTransactionMeta, types.NewTransactionMeta(trx.TxHash, trxMeta))
+		decodedTransactionMeta = append(decodedTransactionMeta, types.NewTransactionMeta(trx.TxHash, trx.Status, trx.ResultXdr, trx.ResultMetaXdr, trxMeta))
 	}
 
 	// contractEvents := make([]*pbstellar.ContractEvent, 0)
 	sorobanEvents := make([]*pbstellar.ContractEvent, 0)
 	stellarTransactions := make([]*pbstellar.Transaction, 0)
 
-	for _, trx := range decodedTransactionMeta {
+	for i, trx := range decodedTransactionMeta {
 		trxMeta, ok := trx.Meta.GetV3()
 		if !ok {
 			f.logger.Debug("transaction meta not v3", zap.String("tx_hash", trx.Hash))
@@ -131,7 +131,12 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		}
 
 		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
-			Hash: trx.Hash,
+			Hash:             trx.Hash,
+			Status:           trx.Status,
+			CreatedAt:        timestamppb.New(time.Unix(ledgerTime, 0)),
+			ApplicationOrder: uint64(i + 1),
+			ResultXdr:        trx.ResultXdr,
+			ResultMetaXdr:    trx.ResultMetaXdr,
 		})
 
 	}
@@ -155,7 +160,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			BaseReserve:        uint32(ledgerHeader.Header.BaseReserve),
 		},
 		Transactions: stellarTransactions,
-		Timestamp:    timestamppb.New(time.Unix(ledgerTime, 0)),
+		CreatedAt:    timestamppb.New(time.Unix(ledgerTime, 0)),
 	}
 
 	bstreamBlock, err := convertBlock(stellarBlk)
@@ -175,16 +180,14 @@ func convertBlock(stellarBlk *pbstellar.Block) (*pbbstream.Block, error) {
 	if err != nil {
 		return nil, fmt.Errorf("unable to create anypb: %w", err)
 	}
-	fmt.Println("stellar block hash", stellarBlk.Hash)
-	blk := &pbbstream.Block{
+
+	return &pbbstream.Block{
 		Number:    stellarBlk.Number,
 		Id:        stellarBlk.Hash,
 		ParentId:  stellarBlk.Header.PreviousLedgerHash,
-		Timestamp: timestamppb.New(stellarBlk.Timestamp.AsTime()),
+		Timestamp: timestamppb.New(stellarBlk.CreatedAt.AsTime()),
 		LibNum:    stellarBlk.Number - 1, // every block in stellar is final
 		ParentNum: stellarBlk.Number - 1, // every block in stellar is final
 		Payload:   anyBlock,
-	}
-
-	return blk, nil
+	}, nil
 }
