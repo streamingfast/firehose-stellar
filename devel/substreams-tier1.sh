@@ -1,0 +1,19 @@
+firecore \
+    start \
+    substreams-tier1 \
+    --config-file= \
+    --log-format=stackdriver \
+    --log-to-file=false \
+    --common-auto-max-procs \
+    --common-auto-mem-limit-percent=90 \
+    --common-system-shutdown-signal-delay=30s \
+    --common-merged-blocks-store-url=data/merged \
+    --common-first-streamable-block=0 \
+    --common-one-block-store-url=data/oneblock \
+    --common-forked-blocks-store-url=data/forked \
+    --substreams-tier1-grpc-listen-addr=:9000 \
+    --substreams-tier1-subrequests-insecure=true \
+    --substreams-tier1-subrequests-plaintext=false \
+    --substreams-tier1-max-subrequests=10 \
+    --substreams-state-bundle-size=100 \
+    --substreams-state-store-url=data/substreams-tier2/states

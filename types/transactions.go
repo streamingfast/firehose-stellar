@@ -61,13 +61,11 @@ func NewTransactionMeta(
 	status string,
 	resultXdr string,
 	resultMetaXdr string,
-	meta *xdrTypes.TransactionMeta,
 ) *TransactionMeta {
 	return &TransactionMeta{
 		Hash:          hash,
 		Status:        status,
 		ResultXdr:     resultXdr,
 		ResultMetaXdr: resultMetaXdr,
-		Meta:          meta,
 	}
 }

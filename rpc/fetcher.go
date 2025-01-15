@@ -87,7 +87,6 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	ledgerHeader := ledgerMetadata.V1.LedgerHeader
 
-	// The number of transactions to fetch when calling the 'getTransactions' RPC method
 	numOfTransactions := len(ledgerMetadata.V1.TxProcessing)
 	lastCursor, transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
 	if err != nil {
@@ -100,36 +99,11 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	decodedTransactionMeta := make([]*types.TransactionMeta, 0)
 	for _, trx := range transactions {
-		trxMeta, err := f.decoder.DecodeTransactionResultMeta(trx.ResultMetaXdr)
-		if err != nil {
-			return nil, false, fmt.Errorf("decoding transaction result meta for trx %s: %w", trx.TxHash, err)
-		}
-
-		decodedTransactionMeta = append(decodedTransactionMeta, types.NewTransactionMeta(trx.TxHash, trx.Status, trx.ResultXdr, trx.ResultMetaXdr, trxMeta))
+		decodedTransactionMeta = append(decodedTransactionMeta, types.NewTransactionMeta(trx.TxHash, trx.Status, trx.ResultXdr, trx.ResultMetaXdr))
 	}
 
-	// contractEvents := make([]*pbstellar.ContractEvent, 0)
-	sorobanEvents := make([]*pbstellar.ContractEvent, 0)
 	stellarTransactions := make([]*pbstellar.Transaction, 0)
-
 	for i, trx := range decodedTransactionMeta {
-		trxMeta, ok := trx.Meta.GetV3()
-		if !ok {
-			f.logger.Debug("transaction meta not v3", zap.String("tx_hash", trx.Hash))
-			continue
-		}
-
-		if trxMeta.SorobanMeta != nil && trxMeta.SorobanMeta.Events != nil {
-			for _, event := range trxMeta.SorobanMeta.Events {
-				contractEvent := &pbstellar.ContractEvent{
-					ContractId: event.ContractId.HexString(),
-					Type:       pbstellar.FromXdrContactEventType(event.Type),
-					// TODO: check how we want to add the eventBody? (raw bytes or all the data decoded)
-				}
-				sorobanEvents = append(sorobanEvents, contractEvent)
-			}
-		}
-
 		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
 			Hash:             trx.Hash,
 			Status:           trx.Status,
@@ -138,16 +112,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			ResultXdr:        trx.ResultXdr,
 			ResultMetaXdr:    trx.ResultMetaXdr,
 		})
-
 	}
-
-	// TODO: once the transaction is decoded, find the number of events and call the
-	// 	'getEvents' RPC method to fetch the events and then decode it
-
-	// events, err := client.GetEvents(requestBlockNum)
-	// if err != nil {
-	// 	return nil, false, fmt.Errorf("fetching events: %w", err)
-	// }
 
 	stellarBlk := &pbstellar.Block{
 		Number: ledger[0].Sequence,
