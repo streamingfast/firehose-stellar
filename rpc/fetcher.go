@@ -88,22 +88,19 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 	ledgerHeader := ledgerMetadata.V1.LedgerHeader
 
 	numOfTransactions := len(ledgerMetadata.V1.TxProcessing)
-	lastCursor, transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
+	f.logger.Debug("fetching transactions", zap.Uint64("block_num", requestBlockNum), zap.Int("num_of_transactions", numOfTransactions))
+	transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching transactions: %w", err)
 	}
 
-	if lastCursor != "" {
-		f.lastBlockInfo.cursor = lastCursor
-	}
-
-	decodedTransactionMeta := make([]*types.TransactionMeta, 0)
+	transactionMeta := make([]*types.TransactionMeta, 0)
 	for _, trx := range transactions {
-		decodedTransactionMeta = append(decodedTransactionMeta, types.NewTransactionMeta(trx.TxHash, trx.Status, trx.ResultXdr, trx.ResultMetaXdr))
+		transactionMeta = append(transactionMeta, types.NewTransactionMeta(trx.TxHash, trx.Status, trx.ResultXdr, trx.ResultMetaXdr))
 	}
 
 	stellarTransactions := make([]*pbstellar.Transaction, 0)
-	for i, trx := range decodedTransactionMeta {
+	for i, trx := range transactionMeta {
 		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
 			Hash:             trx.Hash,
 			Status:           trx.Status,
@@ -132,6 +129,9 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 	if err != nil {
 		return nil, false, fmt.Errorf("converting block: %w", err)
 	}
+
+	// reset the cursor
+	f.lastBlockInfo.cursor = ""
 
 	return bstreamBlock, false, nil
 }

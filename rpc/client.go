@@ -74,13 +74,13 @@ func (c *Client) GetLedgers(startLedgerNum uint64) ([]types.Ledger, error) {
 // 		from the header metadata of the ledger which gives out a number of transactions per ledger
 
 // GetTransactions returns the transactions for a given ledger, it will return successful and failed transactions
-func (c *Client) GetTransactions(ledgerNum uint64, limit int, lastCursor string) (string, []types.Transaction, error) {
+func (c *Client) GetTransactions(ledgerNum uint64, limit int, lastCursor string) ([]types.Transaction, error) {
 	transactions := make([]types.Transaction, 0)
 
 	for {
 		currentCursor, fetchedTransactions, err := c.getTransactions(ledgerNum, limit, lastCursor)
 		if err != nil {
-			return lastCursor, nil, fmt.Errorf("failed to get transactions: %w", err)
+			return nil, fmt.Errorf("failed to get transactions: %w", err)
 		}
 
 		allTransactionsFetched := len(fetchedTransactions) == 0 || currentCursor == ""
@@ -99,7 +99,7 @@ func (c *Client) GetTransactions(ledgerNum uint64, limit int, lastCursor string)
 		lastCursor = currentCursor
 	}
 
-	return lastCursor, transactions, nil
+	return transactions, nil
 }
 
 func (c *Client) getTransactions(ledgerNum uint64, limit int, cursor string) (string, []types.Transaction, error) {

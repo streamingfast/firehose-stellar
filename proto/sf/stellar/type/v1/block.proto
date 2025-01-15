@@ -8,7 +8,8 @@ message Block {
   uint64 number = 1;
   string hash = 2;
   Header header = 3;
-  // Metadata metadata = 4; // todo: is there any information in the metadata that is interesting for the user?
+  // todo: is there any information in the metadata that is interesting for the user?
+  // Metadata metadata = 4;
   
   repeated Transaction transactions = 6;
   google.protobuf.Timestamp created_at = 9;

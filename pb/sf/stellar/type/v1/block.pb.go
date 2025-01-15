@@ -77,7 +77,7 @@ type Block struct {
 
 	Number       uint64                 `protobuf:"varint,1,opt,name=number,proto3" json:"number,omitempty"`
 	Hash         string                 `protobuf:"bytes,2,opt,name=hash,proto3" json:"hash,omitempty"`
-	Header       *Header                `protobuf:"bytes,3,opt,name=header,proto3" json:"header,omitempty"` // Metadata metadata = 4; // todo: is there any information in the metadata that is interesting for the user?
+	Header       *Header                `protobuf:"bytes,3,opt,name=header,proto3" json:"header,omitempty"`
 	Transactions []*Transaction         `protobuf:"bytes,6,rep,name=transactions,proto3" json:"transactions,omitempty"`
 	CreatedAt    *timestamppb.Timestamp `protobuf:"bytes,9,opt,name=created_at,json=createdAt,proto3" json:"created_at,omitempty"`
 }
