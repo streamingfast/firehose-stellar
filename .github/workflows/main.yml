@@ -42,9 +42,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run Stellar Tests
-        working-directory: ./stellar
+        working-directory: stellar
         run: go test ./...
 
       - name: Build Stellar
-        working-directory: ./stellar
+        working-directory: stellar
         run: go build ./...
