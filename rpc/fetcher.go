@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"context"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"time"
@@ -96,7 +97,23 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	transactionMeta := make([]*types.TransactionMeta, 0)
 	for _, trx := range transactions {
-		transactionMeta = append(transactionMeta, types.NewTransactionMeta(trx.TxHash, trx.Status, trx.ResultXdr, trx.ResultMetaXdr))
+		txHashBytes, err := base64.StdEncoding.DecodeString(trx.TxHash)
+		if err != nil {
+			return nil, false, fmt.Errorf("decoding transaction hash: %w", err)
+		}
+		txEnvelopeBytes, err := base64.StdEncoding.DecodeString(trx.EnvelopeXdr)
+		if err != nil {
+			return nil, false, fmt.Errorf("decoding transaction envelope: %w", err)
+		}
+		txResultBytes, err := base64.StdEncoding.DecodeString(trx.ResultXdr)
+		if err != nil {
+			return nil, false, fmt.Errorf("decoding transaction result: %w", err)
+		}
+		txResultMetaBytes, err := base64.StdEncoding.DecodeString(trx.ResultMetaXdr)
+		if err != nil {
+			return nil, false, fmt.Errorf("decoding transaction result meta: %w", err)
+		}
+		transactionMeta = append(transactionMeta, types.NewTransactionMeta(txHashBytes, trx.Status, txEnvelopeBytes, txResultBytes, txResultMetaBytes))
 	}
 
 	stellarTransactions := make([]*pbstellar.Transaction, 0)
@@ -106,17 +123,28 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			Status:           trx.Status,
 			CreatedAt:        timestamppb.New(time.Unix(ledgerTime, 0)),
 			ApplicationOrder: uint64(i + 1),
+			EnvelopeXdr:      trx.EnveloppeXdr,
 			ResultXdr:        trx.ResultXdr,
 			ResultMetaXdr:    trx.ResultMetaXdr,
 		})
 	}
 
+	ledgerHashBytes, err := base64.StdEncoding.DecodeString(ledger[0].Hash)
+	if err != nil {
+		return nil, false, fmt.Errorf("decoding ledger hash: %w", err)
+	}
+
+	previousLedgerHashBytes, err := base64.StdEncoding.DecodeString(ledgerHeader.Header.PreviousLedgerHash.HexString())
+	if err != nil {
+		return nil, false, fmt.Errorf("decoding previous ledger hash: %w", err)
+	}
+
 	stellarBlk := &pbstellar.Block{
 		Number: ledger[0].Sequence,
-		Hash:   ledger[0].Hash,
+		Hash:   ledgerHashBytes,
 		Header: &pbstellar.Header{
 			LedgerVersion:      uint32(ledgerHeader.Header.LedgerVersion),
-			PreviousLedgerHash: ledgerHeader.Header.PreviousLedgerHash.HexString(),
+			PreviousLedgerHash: previousLedgerHashBytes,
 			TotalCoins:         int64(ledgerHeader.Header.TotalCoins),
 			BaseFee:            uint32(ledgerHeader.Header.BaseFee),
 			BaseReserve:        uint32(ledgerHeader.Header.BaseReserve),
@@ -146,10 +174,13 @@ func convertBlock(stellarBlk *pbstellar.Block) (*pbbstream.Block, error) {
 		return nil, fmt.Errorf("unable to create anypb: %w", err)
 	}
 
+	stellarBlockHash := base64.StdEncoding.EncodeToString(stellarBlk.Hash)
+	previousStellarBlockHash := base64.StdEncoding.EncodeToString(stellarBlk.Header.PreviousLedgerHash)
+
 	return &pbbstream.Block{
 		Number:    stellarBlk.Number,
-		Id:        stellarBlk.Hash,
-		ParentId:  stellarBlk.Header.PreviousLedgerHash,
+		Id:        stellarBlockHash,
+		ParentId:  previousStellarBlockHash,
 		Timestamp: timestamppb.New(stellarBlk.CreatedAt.AsTime()),
 		LibNum:    stellarBlk.Number - 1, // every block in stellar is final
 		ParentNum: stellarBlk.Number - 1, // every block in stellar is final
