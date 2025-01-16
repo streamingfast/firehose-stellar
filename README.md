@@ -16,7 +16,7 @@ Quick start with Firehose for Stellar can be found in the official Firehose docs
 The below command with start streaming Firehose Stellar blocks, check `proto/sf/stellar/type/v1/block.proto` for more information.
 
 ```bash
-firestellar fetch {FIRST_STREAMABLE_BLOCK} --endpoints {STELLAR_RPC_ENDPOINT} --state-dir {STATE_DIR}
+firestellar fetch rpc {FIRST_STREAMABLE_BLOCK} --endpoints {STELLAR_RPC_ENDPOINT} --state-dir {STATE_DIR}
 ```
 
 ## Contributing
