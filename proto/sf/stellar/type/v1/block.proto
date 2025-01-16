@@ -6,10 +6,8 @@ import "google/protobuf/timestamp.proto";
 
 message Block {
   uint64 number = 1;
-  string hash = 2;
+  bytes hash = 2;
   Header header = 3;
-  // todo: is there any information in the metadata that is interesting for the user?
-  // Metadata metadata = 4;
   
   repeated Transaction transactions = 6;
   google.protobuf.Timestamp created_at = 9;
@@ -17,42 +15,19 @@ message Block {
 
 message Header {
   uint32 ledger_version = 1;
-  string previous_ledger_hash = 2;
+  bytes previous_ledger_hash = 2;
   int64 total_coins = 3; // The amount of stroops in existence at the end of the ledger
   uint32 base_fee = 4;
   uint32 base_reserve = 5;
 }
 
 message Transaction {
-  string hash = 1;
+  bytes hash = 1;
   string status = 2;
   google.protobuf.Timestamp created_at = 3;
   uint64 application_order = 5;
-  string result_meta_xdr = 6;
-  string result_xdr = 7;
-
-  // repeated ContractEvent contract_event = 4;
-
-  SorobanMeta soroban_meta = 10;
+  bytes envelope_xdr = 6;
+  bytes result_meta_xdr = 7;
+  bytes result_xdr = 8;
 }
 
-message DiagnosticEvent {
-  bool in_successful_contract_call = 1;
-  ContractEvent contract_event = 2;
-}
-
-message ContractEvent {
-  Type type = 1;
-  string contract_id = 2;
-  // todo: check how we want to add the contract body
-
-  enum Type {
-    SYSTEM = 0;
-    CONTRACT = 1;
-    DIAGNOSTIC = 2;
-  }
-}
-
-message SorobanMeta {
-  repeated ContractEvent contract_event = 1;
-}
