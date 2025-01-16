@@ -29,10 +29,6 @@ jobs:
       - name: Cache Go modules
         uses: actions/cache@v3
         with:
-          # In order:
-          # * Module download cache
-          # * Build cache (Linux)
-          # * Build cache (Mac)
           path: |
             ~/go/pkg/mod
             ~/.cache/go-build
@@ -42,9 +38,9 @@ jobs:
             ${{ runner.os }}-go-
 
       - name: Run Stellar Tests
-        working-directory: stellar
+        working-directory: .
         run: go test ./...
 
       - name: Build Stellar
-        working-directory: stellar
+        working-directory: .
         run: go build ./...
