@@ -2,7 +2,6 @@ package rpc
 
 import (
 	"context"
-	"os"
 	"testing"
 	"time"
 
@@ -11,9 +10,10 @@ import (
 )
 
 func Test_Fetch(t *testing.T) {
-	c := NewClient(os.Getenv("HORIZON_URL"), nil)
+	c := NewClient("https://mainnet.sorobanrpc.com", nil)
+	ledger, err := c.GetLatestLedger()
 	f := NewFetcher(time.Second, time.Second, zap.NewNop())
-	b, _, err := f.Fetch(context.Background(), c, 600000)
+	b, _, err := f.Fetch(context.Background(), c, uint64(ledger.Sequence))
 	require.NoError(t, err)
 	require.NotNil(t, b)
 }

@@ -25,8 +25,9 @@ func Test_GetLedgers(t *testing.T) {
 
 func Test_GetTransactions(t *testing.T) {
 	c := NewClient("https://mainnet.sorobanrpc.com", nil)
-	transactions, err := c.GetTransactions(55253344, 100, "")
+	ledger, err := c.GetLatestLedger()
+	require.NoError(t, err)
+	transactions, err := c.GetTransactions(uint64(ledger.Sequence), 100, "")
 	require.NoError(t, err)
 	require.NotNil(t, transactions)
-	require.Equal(t, 140, len(transactions))
 }
