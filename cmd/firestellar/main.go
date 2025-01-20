@@ -3,7 +3,6 @@ package main
 import (
 	"fmt"
 	"os"
-	"time"
 
 	"github.com/spf13/cobra"
 	"github.com/streamingfast/logging"
@@ -20,6 +19,10 @@ var rootCmd = &cobra.Command{
 func init() {
 	logging.InstantiateLoggers(logging.WithDefaultLevel(zap.InfoLevel))
 	rootCmd.AddCommand(newFetchCmd(logger, tracer))
+
+	// Tool commands
+	rootCmd.AddCommand(NewToolCreateAccountCmd(logger, tracer))
+	rootCmd.AddCommand(NewToolDecodeBlockCmd(logger, tracer))
 }
 
 func main() {
@@ -35,7 +38,6 @@ func newFetchCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 		Short: "fetch blocks from different sources",
 		Args:  cobra.ExactArgs(2),
 	}
-	time.Now().UnixMilli()
 	cmd.AddCommand(NewFetchCmd(logger, tracer))
 	return cmd
 }

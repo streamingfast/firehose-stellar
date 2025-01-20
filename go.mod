@@ -6,13 +6,14 @@ require (
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	github.com/spf13/cobra v1.8.1
 	github.com/streamingfast/bstream v0.0.2-0.20250114192704-6a23c67c0b4d
-	github.com/streamingfast/cli v0.0.4-0.20241204195552-16b367a5935e
-	github.com/streamingfast/firehose-core v1.6.10-0.20250115205411-9be23e08f63a
+	github.com/streamingfast/cli v0.0.4-0.20250116003948-fbf66c930cce
+	github.com/streamingfast/firehose-core v1.7.0
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
 	go.uber.org/zap v1.27.0
 )
 
 require (
+	github.com/mr-tron/base58 v1.2.0 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
@@ -65,6 +66,7 @@ require (
 	github.com/envoyproxy/protoc-gen-validate v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
 	github.com/fsnotify/fsnotify v1.6.0 // indirect
+	github.com/go-json-experiment/json v0.0.0-20250116043007-0640c115aea5
 	github.com/go-logr/logr v1.4.2 // indirect
 	github.com/go-logr/stdr v1.2.2 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
@@ -122,7 +124,7 @@ require (
 	github.com/streamingfast/dauth v0.0.0-20240222213226-519afc16cf84 // indirect
 	github.com/streamingfast/dbin v0.9.1-0.20231117225723-59790c798e2c // indirect
 	github.com/streamingfast/derr v0.0.0-20230515163924-8570aaa43fe1 // indirect
-	github.com/streamingfast/dgrpc v0.0.0-20250109212433-ae21a7f7a01a // indirect
+	github.com/streamingfast/dgrpc v0.0.0-20250115215805-6f4ad2be7eef // indirect
 	github.com/streamingfast/dhammer v0.0.0-20230125192823-c34bbd561bd4 // indirect
 	github.com/streamingfast/dmetering v0.0.0-20241101155221-489f5a9d9139 // indirect
 	github.com/streamingfast/dmetrics v0.0.0-20230919161904-206fa8ebd545 // indirect
@@ -132,7 +134,7 @@ require (
 	github.com/streamingfast/pbgo v0.0.6-0.20250114182320-0b43084f4000 // indirect
 	github.com/streamingfast/sf-tracing v0.0.0-20240430173521-888827872b90 // indirect
 	github.com/streamingfast/shutter v1.5.0 // indirect
-	github.com/streamingfast/substreams v1.11.4-0.20250113142113-36c2750be692 // indirect
+	github.com/streamingfast/substreams v1.12.0 // indirect
 	github.com/stretchr/testify v1.9.0
 	github.com/subosito/gotenv v1.6.0 // indirect
 	github.com/teris-io/shortid v0.0.0-20201117134242-e59966efd125 // indirect
