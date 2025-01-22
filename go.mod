@@ -13,11 +13,16 @@ require (
 )
 
 require (
-	github.com/mr-tron/base58 v1.2.0 // indirect
+	github.com/go-chi/chi v4.1.2+incompatible // indirect
+	github.com/go-errors/errors v1.5.1 // indirect
+	github.com/gorilla/schema v1.4.1 // indirect
+	github.com/manucorporat/sse v0.0.0-20160126180136-ee05b128a739 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
+	github.com/segmentio/go-loggly v0.5.1-0.20171222203950-eb91657e62b2 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
+	github.com/stretchr/objx v0.5.2 // indirect
 )
 
 require (
@@ -49,7 +54,7 @@ require (
 	github.com/beorn7/perks v1.0.1 // indirect
 	github.com/bits-and-blooms/bitset v1.12.0 // indirect
 	github.com/blendle/zapdriver v1.3.2-0.20200203083823-9200777f8a3d // indirect
-	github.com/bobg/go-generics/v3 v3.4.0 // indirect
+	github.com/bobg/go-generics/v3 v3.4.0
 	github.com/census-instrumentation/opencensus-proto v0.4.1 // indirect
 	github.com/cespare/xxhash/v2 v2.3.0 // indirect
 	github.com/charmbracelet/lipgloss v1.0.0 // indirect
@@ -128,7 +133,7 @@ require (
 	github.com/streamingfast/dhammer v0.0.0-20230125192823-c34bbd561bd4 // indirect
 	github.com/streamingfast/dmetering v0.0.0-20241101155221-489f5a9d9139 // indirect
 	github.com/streamingfast/dmetrics v0.0.0-20230919161904-206fa8ebd545 // indirect
-	github.com/streamingfast/dstore v0.1.1-0.20241011152904-9acd6205dc14 // indirect
+	github.com/streamingfast/dstore v0.1.1-0.20241011152904-9acd6205dc14
 	github.com/streamingfast/dtracing v0.0.0-20220305214756-b5c0e8699839 // indirect
 	github.com/streamingfast/opaque v0.0.0-20210811180740-0c01d37ea308 // indirect
 	github.com/streamingfast/pbgo v0.0.6-0.20250114182320-0b43084f4000 // indirect

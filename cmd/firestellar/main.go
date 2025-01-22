@@ -21,8 +21,12 @@ func init() {
 	rootCmd.AddCommand(newFetchCmd(logger, tracer))
 
 	// Tool commands
-	rootCmd.AddCommand(NewToolCreateAccountCmd(logger, tracer))
-	rootCmd.AddCommand(NewToolDecodeBlockCmd(logger, tracer))
+	rootCmd.AddCommand(NewToolDecodeBlockCmd())
+	rootCmd.AddCommand(NewToolCreateAccountCmd())
+	rootCmd.AddCommand(NewToolSendPaymentCmd())
+	rootCmd.AddCommand(NewToolIssueAssetCmd())
+	rootCmd.AddCommand(NewToolSendPaymentAssetCmd())
+	rootCmd.AddCommand(NewToolDecodeSeedCmd())
 }
 
 func main() {

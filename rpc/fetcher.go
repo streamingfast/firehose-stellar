@@ -11,6 +11,7 @@ import (
 	"github.com/streamingfast/firehose-stellar/decoder"
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
 	"github.com/streamingfast/firehose-stellar/types"
+	"github.com/streamingfast/firehose-stellar/utils"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/types/known/anypb"
 	"google.golang.org/protobuf/types/known/timestamppb"
@@ -125,7 +126,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 	for i, trx := range transactionMeta {
 		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
 			Hash:             trx.Hash,
-			Status:           trx.Status,
+			Status:           utils.ConvertTransactionStatus(trx.Status),
 			CreatedAt:        timestamppb.New(time.Unix(ledgerTime, 0)),
 			ApplicationOrder: uint64(i + 1),
 			EnvelopeXdr:      trx.EnveloppeXdr,
