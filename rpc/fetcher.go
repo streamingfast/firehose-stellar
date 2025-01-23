@@ -92,6 +92,11 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	numOfTransactions := len(ledgerMetadata.V1.TxProcessing)
 	f.logger.Debug("fetching transactions", zap.Uint64("block_num", requestBlockNum), zap.Int("num_of_transactions", numOfTransactions))
+	if numOfTransactions > 200 {
+		// There is a hard limit on the number of transactions
+		// to fetch. The RPC providers tipically set the maximum limit to 200.
+		numOfTransactions = 200
+	}
 	transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching transactions: %w", err)

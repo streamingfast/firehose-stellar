@@ -31,3 +31,11 @@ func Test_GetTransactions(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, transactions)
 }
+
+func Test_GetTransactionsWithLimitTooHigh(t *testing.T) {
+	c := NewClient("https://mainnet.sorobanrpc.com", nil)
+	ledger, err := c.GetLatestLedger()
+	require.NoError(t, err)
+	_, err = c.GetTransactions(uint64(ledger.Sequence), 2000, "")
+	require.Error(t, err)
+}

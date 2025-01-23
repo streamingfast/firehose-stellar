@@ -39,9 +39,11 @@ func (c *Client) GetLatestLedger() (*types.GetLatestLedgerResult, error) {
 	}
 
 	var response types.GetLatestLedgerResponse
-	err = json.Unmarshal(body, &response)
+	decoder := json.NewDecoder(bytes.NewBuffer(body))
+	decoder.DisallowUnknownFields() // Fail on unknown fields
+	err = decoder.Decode(&response)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return nil, fmt.Errorf("original body: %s failed to unmarshal JSON: %w", string(body), err)
 	}
 
 	return &response.Result, nil
@@ -62,9 +64,11 @@ func (c *Client) GetLedgers(startLedgerNum uint64) ([]types.Ledger, error) {
 	}
 
 	var response types.GetLedgersResponse
-	err = json.Unmarshal(body, &response)
+	decoder := json.NewDecoder(bytes.NewBuffer(body))
+	decoder.DisallowUnknownFields() // Fail on unknown fields
+	err = decoder.Decode(&response)
 	if err != nil {
-		return nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return nil, fmt.Errorf("original body: %s failed to unmarshal JSON: %w", string(body), err)
 	}
 
 	return response.Result.Ledgers, nil
@@ -116,70 +120,15 @@ func (c *Client) getTransactions(ledgerNum uint64, limit int, cursor string) (st
 	}
 
 	var transactions types.GetTransactionResponse
-	err = json.Unmarshal(body, &transactions)
+	decoder := json.NewDecoder(bytes.NewBuffer(body))
+	decoder.DisallowUnknownFields() // Fail on unknown fields
+	err = decoder.Decode(&transactions)
 	if err != nil {
-		return cursor, nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
+		return cursor, nil, fmt.Errorf("original body: %s failed to unmarshal JSON: %w", string(body), err)
 	}
 
 	cursor = transactions.Result.Cursor
 	return cursor, transactions.Result.Transactions, nil
-}
-
-// TODO: handle the cursor in the same way as the cursor in GetTransactions
-// 		need the feedback from Syd on the events
-//	  so the Stellar team actually uses the ResultMetaXdr from the transaction to get the events
-//		so this means that we will probably remove the getEvents call and use the ResultMetaXdr instead
-
-// GetEvents returns the events for a given ledger
-func (c *Client) GetEvents(ledgerNum uint64, limit int, lastCursor string) (string, []types.Event, error) {
-	events := make([]types.Event, 0)
-
-	for {
-		currentCursor, fetchedEvents, err := c.getEvents(ledgerNum, limit, lastCursor)
-		if err != nil {
-			return lastCursor, nil, fmt.Errorf("failed to get events: %w", err)
-		}
-
-		allEventsFetched := len(fetchedEvents) == 0 || currentCursor == ""
-
-		for _, f := range fetchedEvents {
-			if f.Ledger != ledgerNum {
-				allEventsFetched = true
-				break
-			}
-			events = append(events, f)
-		}
-
-		if allEventsFetched {
-			break
-		}
-		lastCursor = currentCursor
-	}
-
-	return lastCursor, events, nil
-}
-
-func (c *Client) getEvents(ledgerNum uint64, limit int, cursor string) (string, []types.Event, error) {
-	payload := types.NewEventsRequest(ledgerNum, types.NewPagination(limit, cursor))
-
-	rpcBody, err := json.Marshal(payload)
-	if err != nil {
-		return cursor, nil, fmt.Errorf("failed to marshal JSON: %w", err)
-	}
-
-	body, err := c.makeRquest(rpcBody)
-	if err != nil {
-		return cursor, nil, fmt.Errorf("failed to get events: %w", err)
-	}
-
-	var response types.GetEventsResponse
-	err = json.Unmarshal(body, &response)
-	if err != nil {
-		return cursor, nil, fmt.Errorf("failed to unmarshal JSON: %w", err)
-	}
-
-	cursor = response.Result.Cursor
-	return cursor, response.Result.Events, nil
 }
 
 func (c *Client) makeRquest(reqBody []byte) ([]byte, error) {

@@ -105,7 +105,7 @@ func toolFixBlockRunE(cmd *cobra.Command, args []string) error {
 
 			convertedTransactions, err := convertOldTransactions(stellarBlock.Transactions)
 			if err != nil {
-				return fmt.Errorf("converting old transactions: %w", err)
+				return fmt.Errorf("converting old transactions at %d: %w", currentBlock.Number, err)
 			}
 
 			fixedStellarBlock := &pbstellarv1.Block{
