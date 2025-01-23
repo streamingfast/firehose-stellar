@@ -32,16 +32,18 @@ type Fetcher struct {
 	latestBlockRetryInterval time.Duration
 	lastBlockInfo            *LastBlockInfo
 	decoder                  *decoder.Decoder
+	clientLimit              int
 
 	logger *zap.Logger
 }
 
-func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, logger *zap.Logger) *Fetcher {
+func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, clientLimit int, logger *zap.Logger) *Fetcher {
 	return &Fetcher{
 		fetchInterval:            fetchInterval,
 		latestBlockRetryInterval: latestBlockRetryInterval,
 		lastBlockInfo:            NewLastBlockInfo(),
 		decoder:                  decoder.NewDecoder(logger),
+		clientLimit:              clientLimit,
 		logger:                   logger,
 	}
 }
@@ -92,10 +94,10 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	numOfTransactions := len(ledgerMetadata.V1.TxProcessing)
 	f.logger.Debug("fetching transactions", zap.Uint64("block_num", requestBlockNum), zap.Int("num_of_transactions", numOfTransactions))
-	if numOfTransactions > 200 {
+	if numOfTransactions > f.clientLimit {
 		// There is a hard limit on the number of transactions
 		// to fetch. The RPC providers tipically set the maximum limit to 200.
-		numOfTransactions = 200
+		numOfTransactions = f.clientLimit
 	}
 	transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
 	if err != nil {
