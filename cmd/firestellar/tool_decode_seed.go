@@ -10,7 +10,7 @@ import (
 func NewToolDecodeSeedCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tool-decode-seed <seed>",
-		Short: "Firehose Stellar tool to decode seed",
+		Short: "Tool to decode seed",
 		Args:  cobra.ExactArgs(1),
 		RunE:  toolDecodeSeedRunE,
 	}

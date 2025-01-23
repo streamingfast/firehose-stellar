@@ -14,7 +14,7 @@ import (
 func NewToolIssueAssetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tool-issue-asset <issuer-account-seed> <distributor-account-seed> <token-code>",
-		Short: "Firehose Stellar tool to issue asset",
+		Short: "Tool to issue asset",
 		Args:  cobra.ExactArgs(3),
 		RunE:  toolIssueAssetRunE,
 	}

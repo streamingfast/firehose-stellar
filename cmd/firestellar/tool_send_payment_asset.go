@@ -16,7 +16,7 @@ import (
 func NewToolSendPaymentAssetCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tool-send-payment-asset <issuer-seed> <accound-dest-pk> <asset-code> <amount>",
-		Short: "Firehose Stellar tool to send payment",
+		Short: "Tool to send payment",
 		Args:  cobra.ExactArgs(4),
 		RunE:  toolSendPaymentAssetRunE,
 		Example: cli.Dedent(`

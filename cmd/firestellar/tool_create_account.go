@@ -13,7 +13,7 @@ import (
 func NewToolCreateAccountCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tool-create-account",
-		Short: "Firehose Stellar tool to an create account",
+		Short: "Tool to create account",
 		Args:  cobra.ExactArgs(0),
 		RunE:  toolCreateAccountRunE,
 	}

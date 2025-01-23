@@ -1,7 +1,6 @@
 package main
 
 import (
-	"encoding/base64"
 	"encoding/hex"
 	"errors"
 	"fmt"
@@ -25,7 +24,7 @@ import (
 func NewToolDecodeBlockCmd() *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "tool-decode-block <store> <block-range>",
-		Short: "Firehose Stellar tool to decode a firehose block",
+		Short: "Tool to decode a firehose block",
 		Args:  cobra.ExactArgs(2),
 		RunE:  runDecodeBlockE,
 	}
@@ -148,14 +147,14 @@ func marshalTransaction(e *jsontext.Encoder, value *pbstellar.Transaction, optio
 		ResultXdr        *xdrTypes.TransactionResult
 	}
 
-	// FIXME: once the transaction hash is fixed, we can remove this
-	fixHash := base64.StdEncoding.EncodeToString(value.Hash)
-	fixHashB, err := hex.DecodeString(fixHash)
-	if err != nil {
-		return fmt.Errorf("unable to decode hash: %w", err)
-	}
+	// // FIXME: once the transaction hash is fixed, we can remove this
+	// fixHash := base64.StdEncoding.EncodeToString(value.Hash)
+	// fixHashB, err := hex.DecodeString(fixHash)
+	// if err != nil {
+	// 	return fmt.Errorf("unable to decode hash: %w", err)
+	// }
 	trx := &DecodedTransaction{
-		Hash:             fixHashB,
+		Hash:             value.Hash,
 		Status:           value.Status,
 		CreatedAt:        value.CreatedAt,
 		ApplicationOrder: value.ApplicationOrder,

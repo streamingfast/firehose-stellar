@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"time"
@@ -98,12 +99,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	transactionMeta := make([]*types.TransactionMeta, 0)
 	for _, trx := range transactions {
-		// FIXME: change to use txHashBytes with the hex encoding
-		// txHashbytes, err := hex.DecodeString(trx.TxHash)
-		// if err != nil {
-		// 	return nil, false, fmt.Errorf("decoding transaction hash: %w", err)
-		// }
-		txHashBytes, err := base64.StdEncoding.DecodeString(trx.TxHash)
+		txHashBytes, err := hex.DecodeString(trx.TxHash)
 		if err != nil {
 			return nil, false, fmt.Errorf("decoding transaction hash: %w", err)
 		}

@@ -27,6 +27,7 @@ func init() {
 	rootCmd.AddCommand(NewToolIssueAssetCmd())
 	rootCmd.AddCommand(NewToolSendPaymentAssetCmd())
 	rootCmd.AddCommand(NewToolDecodeSeedCmd())
+	rootCmd.AddCommand(NewToolFixBlocksCmd())
 }
 
 func main() {

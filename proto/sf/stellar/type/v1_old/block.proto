@@ -1,0 +1,32 @@
+syntax = "proto3";
+package sf.stellar.type.v1_old;
+
+option go_package = "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1_old;pbstellar";
+import "google/protobuf/timestamp.proto";
+
+message Block {
+  uint64 number = 1;
+  bytes hash = 2;
+  Header header = 3;
+  
+  repeated Transaction transactions = 6;
+  google.protobuf.Timestamp created_at = 9;
+}
+
+message Header {
+  uint32 ledger_version = 1;
+  bytes previous_ledger_hash = 2;
+  int64 total_coins = 3; // The amount of stroops in existence at the end of the ledger
+  uint32 base_fee = 4;
+  uint32 base_reserve = 5;
+}
+
+message Transaction {
+  bytes hash = 1;
+  string status = 2;
+  google.protobuf.Timestamp created_at = 3;
+  uint64 application_order = 5;
+  bytes envelope_xdr = 6;
+  bytes result_meta_xdr = 7;
+  bytes result_xdr = 8;
+}
