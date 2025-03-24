@@ -53,7 +53,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 	for f.lastBlockInfo.blockNum < requestBlockNum {
 		time.Sleep(sleepDuration)
 
-		latestLedger, err := client.GetLatestLedger()
+		latestLedger, err := client.GetLatestLedger(ctx)
 		if err != nil {
 			return nil, false, fmt.Errorf("fetching latest block num: %w", err)
 		}
@@ -67,7 +67,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		sleepDuration = f.latestBlockRetryInterval
 	}
 
-	ledger, err := client.GetLedgers(requestBlockNum)
+	ledger, err := client.GetLedgers(ctx, requestBlockNum)
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching ledger: %w", err)
 	}
@@ -99,7 +99,8 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		// to fetch. The RPC providers tipically set the maximum limit to 200.
 		numOfTransactions = f.clientLimit
 	}
-	transactions, err := client.GetTransactions(requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
+
+	transactions, err := client.GetTransactions(ctx, requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching transactions: %w", err)
 	}

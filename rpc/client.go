@@ -2,6 +2,7 @@ package rpc
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -25,7 +26,7 @@ func NewClient(rpcEndpoint string, logger *zap.Logger) *Client {
 	}
 }
 
-func (c *Client) GetLatestLedger() (*types.GetLatestLedgerResult, error) {
+func (c *Client) GetLatestLedger(ctx context.Context) (*types.GetLatestLedgerResult, error) {
 	payload := types.NewLatestLedgerRequest()
 
 	rpcBody, err := json.Marshal(payload)
@@ -33,7 +34,7 @@ func (c *Client) GetLatestLedger() (*types.GetLatestLedgerResult, error) {
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	body, err := c.makeRquest(rpcBody)
+	body, err := c.makeRequest(ctx, rpcBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get latest ledger: %w", err)
 	}
@@ -50,7 +51,7 @@ func (c *Client) GetLatestLedger() (*types.GetLatestLedgerResult, error) {
 }
 
 // GetLedgers returns the ledgers for a given number
-func (c *Client) GetLedgers(startLedgerNum uint64) ([]types.Ledger, error) {
+func (c *Client) GetLedgers(ctx context.Context, startLedgerNum uint64) ([]types.Ledger, error) {
 	payload := types.NewLedgerRequest(startLedgerNum, &types.Pagination{Limit: 1})
 
 	rpcBody, err := json.Marshal(payload)
@@ -58,7 +59,7 @@ func (c *Client) GetLedgers(startLedgerNum uint64) ([]types.Ledger, error) {
 		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	body, err := c.makeRquest(rpcBody)
+	body, err := c.makeRequest(ctx, rpcBody)
 	if err != nil {
 		return nil, fmt.Errorf("failed to get ledgers: %w", err)
 	}
@@ -78,11 +79,11 @@ func (c *Client) GetLedgers(startLedgerNum uint64) ([]types.Ledger, error) {
 // 		from the header metadata of the ledger which gives out a number of transactions per ledger
 
 // GetTransactions returns the transactions for a given ledger, it will return successful and failed transactions
-func (c *Client) GetTransactions(ledgerNum uint64, limit int, lastCursor string) ([]types.Transaction, error) {
+func (c *Client) GetTransactions(ctx context.Context, ledgerNum uint64, limit int, lastCursor string) ([]types.Transaction, error) {
 	transactions := make([]types.Transaction, 0)
 
 	for {
-		currentCursor, fetchedTransactions, err := c.getTransactions(ledgerNum, limit, lastCursor)
+		currentCursor, fetchedTransactions, err := c.getTransactions(ctx, ledgerNum, limit, lastCursor)
 		if err != nil {
 			return nil, fmt.Errorf("failed to get transactions: %w", err)
 		}
@@ -106,7 +107,7 @@ func (c *Client) GetTransactions(ledgerNum uint64, limit int, lastCursor string)
 	return transactions, nil
 }
 
-func (c *Client) getTransactions(ledgerNum uint64, limit int, cursor string) (string, []types.Transaction, error) {
+func (c *Client) getTransactions(ctx context.Context, ledgerNum uint64, limit int, cursor string) (string, []types.Transaction, error) {
 	payload := types.NewGetTransactionsRquest(ledgerNum, types.NewPagination(limit, cursor))
 
 	rpcBody, err := json.Marshal(payload)
@@ -114,7 +115,7 @@ func (c *Client) getTransactions(ledgerNum uint64, limit int, cursor string) (st
 		return cursor, nil, fmt.Errorf("failed to marshal JSON: %w", err)
 	}
 
-	body, err := c.makeRquest(rpcBody)
+	body, err := c.makeRequest(ctx, rpcBody)
 	if err != nil {
 		return cursor, nil, fmt.Errorf("failed to get transactions: %w", err)
 	}
@@ -131,8 +132,8 @@ func (c *Client) getTransactions(ledgerNum uint64, limit int, cursor string) (st
 	return cursor, transactions.Result.Transactions, nil
 }
 
-func (c *Client) makeRquest(reqBody []byte) ([]byte, error) {
-	req, err := http.NewRequest("POST", c.rpcEndpoint, bytes.NewBuffer(reqBody))
+func (c *Client) makeRequest(ctx context.Context, reqBody []byte) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, "POST", c.rpcEndpoint, bytes.NewBuffer(reqBody))
 	if err != nil {
 		return nil, fmt.Errorf("failed to create request: %w", err)
 	}

@@ -55,7 +55,7 @@ func fetchRunE(logger *zap.Logger, _ logging.Tracer) firecore.CommandExecutor {
 			zap.Duration("latest_block_retry_interval", latestBlockRetryInterval),
 		)
 
-		rollingStrategy := firecoreRPC.NewRollingStrategyAlwaysUseFirst[*rpc.Client]()
+		rollingStrategy := firecoreRPC.NewStickyRollingStrategy[*rpc.Client]()
 
 		rpcEndpoints := sflags.MustGetStringArray(cmd, "endpoints")
 		rpcClients := firecoreRPC.NewClients(maxBlockFetchDuration, rollingStrategy, logger)
