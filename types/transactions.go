@@ -1,6 +1,8 @@
 package types
 
 import (
+	"encoding/json"
+
 	xdrTypes "github.com/stellar/go/xdr"
 )
 
@@ -27,16 +29,17 @@ type GetTransactionResponse struct {
 }
 
 type Transaction struct {
-	Status              string   `json:"status"`
-	TxHash              string   `json:"txHash"`
-	ApplicationOrder    int      `json:"applicationOrder"`
-	FeeBump             bool     `json:"feeBump"`
-	EnvelopeXdr         string   `json:"envelopeXdr"`
-	ResultXdr           string   `json:"resultXdr"`
-	ResultMetaXdr       string   `json:"resultMetaXdr"`
-	DiagnosticEventsXdr []string `json:"diagnosticEventsXdr"`
-	Ledger              uint64   `json:"ledger"`
-	CreatedAt           uint64   `json:"createdAt"`
+	Status              string          `json:"status"`
+	TxHash              string          `json:"txHash"`
+	ApplicationOrder    int             `json:"applicationOrder"`
+	FeeBump             bool            `json:"feeBump"`
+	EnvelopeXdr         string          `json:"envelopeXdr"`
+	ResultXdr           string          `json:"resultXdr"`
+	ResultMetaXdr       string          `json:"resultMetaXdr"`
+	DiagnosticEventsXdr []string        `json:"diagnosticEventsXdr"`
+	Events              json.RawMessage `json:"events"` // currently ignored as of July 17 2025, waiting for more information on this new field
+	Ledger              uint64          `json:"ledger"`
+	CreatedAt           uint64          `json:"createdAt"`
 }
 
 type GetTransactionsResult struct {
