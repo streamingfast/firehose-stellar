@@ -33,6 +33,15 @@ func Test_GetTransactions(t *testing.T) {
 	require.NotNil(t, transactions)
 }
 
+func Test_GetTransactionsWithEvents(t *testing.T) {
+	c := NewClient("https://mainnet.sorobanrpc.com", nil)
+	ledger, err := c.GetLatestLedger(context.Background())
+	require.NoError(t, err)
+	transactions, err := c.GetTransactions(context.Background(), uint64(ledger.Sequence), 100, "")
+	require.NoError(t, err)
+	require.NotNil(t, transactions)
+}
+
 func Test_GetTransactionsWithLimitTooHigh(t *testing.T) {
 	c := NewClient("https://mainnet.sorobanrpc.com", nil)
 	ledger, err := c.GetLatestLedger(context.Background())

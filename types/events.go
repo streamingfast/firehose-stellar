@@ -1,5 +1,11 @@
 package types
 
+type Events struct {
+	DiagnosticEventsXdr  []string   `json:"diagnosticEventsXdr"`
+	TransactionEventsXdr []string   `json:"transactionEventsXdr"`
+	ContractEventsXdr    [][]string `json:"contractEventsXdr"`
+}
+
 type EventsParams struct {
 	StartLedger uint64      `json:"startLedger"`
 	EndLedger   uint64      `json:"endLedger"`
