@@ -105,7 +105,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		return nil, false, fmt.Errorf("fetching transactions: %w", err)
 	}
 
-	transactionMeta := make([]*types.TransactionMeta, 0)
+	transactionMetas := make([]*types.TransactionMeta, 0)
 	for _, trx := range transactions {
 		txHashBytes, err := hex.DecodeString(trx.TxHash)
 		if err != nil {
@@ -123,11 +123,58 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		if err != nil {
 			return nil, false, fmt.Errorf("decoding transaction result meta: %w", err)
 		}
-		transactionMeta = append(transactionMeta, types.NewTransactionMeta(txHashBytes, trx.Status, txEnvelopeBytes, txResultBytes, txResultMetaBytes))
+
+		events := &pbstellar.Events{}
+		if trx.Events != nil {
+
+			diagnosticEvents := make([][]byte, 0)
+			for _, event := range trx.Events.DiagnosticEventsXdr {
+				decodedEvent, err := base64.StdEncoding.DecodeString(event)
+				if err != nil {
+					return nil, false, fmt.Errorf("decoding diagnostic event: %w", err)
+				}
+
+				diagnosticEvents = append(diagnosticEvents, decodedEvent)
+			}
+
+			transactionsEvents := make([][]byte, 0)
+			for _, event := range trx.Events.TransactionEventsXdr {
+				decodedEvent, err := base64.StdEncoding.DecodeString(event)
+				if err != nil {
+					return nil, false, fmt.Errorf("decoding transaction event: %w", err)
+				}
+
+				transactionsEvents = append(transactionsEvents, decodedEvent)
+			}
+
+			contractEvents := make([]*pbstellar.ContractEvent, 0)
+			for _, events := range trx.Events.ContractEventsXdr {
+				innerContractEvents := make([][]byte, 0)
+				for _, event := range events {
+					decodedEvent, err := base64.StdEncoding.DecodeString(event)
+					if err != nil {
+						return nil, false, fmt.Errorf("decoding contract event: %w", err)
+					}
+
+					innerContractEvents = append(innerContractEvents, decodedEvent)
+				}
+				contractEvents = append(contractEvents, &pbstellar.ContractEvent{
+					Events: innerContractEvents,
+				})
+			}
+
+			events.DiagnosticEventsXdr = diagnosticEvents
+			events.TransactionEventsXdr = transactionsEvents
+			events.ContractEventsXdr = contractEvents
+		}
+
+		transactionMeta := types.NewTransactionMeta(txHashBytes, trx.Status, txEnvelopeBytes, txResultBytes, txResultMetaBytes, events)
+
+		transactionMetas = append(transactionMetas, transactionMeta)
 	}
 
 	stellarTransactions := make([]*pbstellar.Transaction, 0)
-	for i, trx := range transactionMeta {
+	for i, trx := range transactionMetas {
 		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
 			Hash:             trx.Hash,
 			Status:           utils.ConvertTransactionStatus(trx.Status),
@@ -136,6 +183,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			EnvelopeXdr:      trx.EnveloppeXdr,
 			ResultXdr:        trx.ResultXdr,
 			ResultMetaXdr:    trx.ResultMetaXdr,
+			Events:           trx.Events,
 		})
 	}
 
@@ -159,6 +207,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			BaseFee:            uint32(ledgerHeader.Header.BaseFee),
 			BaseReserve:        uint32(ledgerHeader.Header.BaseReserve),
 		},
+		Version:      1,
 		Transactions: stellarTransactions,
 		CreatedAt:    timestamppb.New(time.Unix(ledgerTime, 0)),
 	}

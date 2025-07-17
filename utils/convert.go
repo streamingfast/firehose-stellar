@@ -9,3 +9,7 @@ func ConvertTransactionStatus(status string) pbstellar.TransactionStatus {
 
 	return pbstellar.TransactionStatus_FAILED
 }
+
+func ConvertTransactionEvents(events *pbstellar.Events) *pbstellar.Events {
+	return nil
+}

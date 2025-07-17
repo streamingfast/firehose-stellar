@@ -8,6 +8,7 @@ message Block {
   uint64 number = 1;
   bytes hash = 2;
   Header header = 3;
+  int64 version = 4;
   
   repeated Transaction transactions = 6;
   google.protobuf.Timestamp created_at = 9;
@@ -29,6 +30,18 @@ message Transaction {
   bytes envelope_xdr = 6;
   bytes result_meta_xdr = 7;
   bytes result_xdr = 8;
+  Events events = 9;
+}
+
+// As per: https://github.com/stellar/stellar-rpc/pull/455
+message Events {
+  repeated bytes diagnostic_events_xdr = 1;
+  repeated bytes transaction_events_xdr = 2;
+  repeated ContractEvent contract_events_xdr = 3;
+}
+
+message ContractEvent {
+  repeated bytes events = 1;
 }
 
 enum TransactionStatus {

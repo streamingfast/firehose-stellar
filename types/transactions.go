@@ -2,6 +2,7 @@ package types
 
 import (
 	xdrTypes "github.com/stellar/go/xdr"
+	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
 )
 
 type GetTransactionsRquest struct {
@@ -35,10 +36,10 @@ type Transaction struct {
 	ResultXdr        string `json:"resultXdr"`
 	ResultMetaXdr    string `json:"resultMetaXdr"`
 	// deprecated, check the Events field instead
-	DiagnosticEventsXdr []string `json:"diagnosticEventsXdr"`
-	Events              Events   `json:"events"`
-	Ledger              uint64   `json:"ledger"`
-	CreatedAt           uint64   `json:"createdAt"`
+	DiagnosticEventsXdr []string   `json:"diagnosticEventsXdr"`
+	Events              *RPCEvents `json:"events"`
+	Ledger              uint64     `json:"ledger"`
+	CreatedAt           uint64     `json:"createdAt"`
 }
 
 type GetTransactionsResult struct {
@@ -57,6 +58,7 @@ type TransactionMeta struct {
 	ResultXdr     []byte
 	ResultMetaXdr []byte
 	Meta          *xdrTypes.TransactionMeta
+	Events        *pbstellar.Events
 }
 
 func NewTransactionMeta(
@@ -65,6 +67,7 @@ func NewTransactionMeta(
 	envelopeXdr []byte,
 	resultXdr []byte,
 	resultMetaXdr []byte,
+	events *pbstellar.Events,
 ) *TransactionMeta {
 	return &TransactionMeta{
 		Hash:          hash,
@@ -72,5 +75,6 @@ func NewTransactionMeta(
 		EnveloppeXdr:  envelopeXdr,
 		ResultXdr:     resultXdr,
 		ResultMetaXdr: resultMetaXdr,
+		Events:        events,
 	}
 }
