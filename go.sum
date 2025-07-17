@@ -106,8 +106,8 @@ github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/cloudmock v0.39.0/go.mod h1:PV+bUv9S+/W9PmZECvnC39uIEYnDL9veytwZrMqPexc=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.39.0 h1:uZvy89rOd+9ryIir65RO7BmKYxQ9uBbFcnNcslu6RIM=
 github.com/GoogleCloudPlatform/opentelemetry-operations-go/internal/resourcemapping v0.39.0/go.mod h1:lz6DEePTxmjvYMtusOoS3qDAErC0STi/wmvqJucKY28=
-github.com/GoogleCloudPlatform/opentelemetry-operations-go/propagator v0.0.0-20221018185641-36f91511cfd7 h1:4cXY9jZO7UoRYKyD+CssnBlwn2HTeUzCQ1b44PJijzc=
-github.com/GoogleCloudPlatform/opentelemetry-operations-go/propagator v0.0.0-20221018185641-36f91511cfd7/go.mod h1:FwtSi1M0P8cuMlHxVso1vcivukprUr1bBwf15CRypOI=
+github.com/GoogleCloudPlatform/opentelemetry-operations-go/propagator v0.39.0 h1:sFZRLgbxhstmHGT+fqg88T4SpwCQQuQ/KnsSDDM2g60=
+github.com/GoogleCloudPlatform/opentelemetry-operations-go/propagator v0.39.0/go.mod h1:ML9pY4SjdBE/fTBnIwTaJu+5ZahLW3e/snaUPuOdcck=
 github.com/KimMachineGun/automemlimit v0.2.4 h1:GBty8TK8k0aJer1Pq5/3Vdt2ef+YpLhcqNo+PSD5CoI=
 github.com/KimMachineGun/automemlimit v0.2.4/go.mod h1:38QAnnnNhnFuAIW3+aPlaVUHqzE9buJYZK3m/jsra8E=
 github.com/OneOfOne/xxhash v1.2.2/go.mod h1:HSdplMjZKSmBqAxg5vPj2TmRDmfkzw+cTzAElWljhcU=
@@ -353,6 +353,8 @@ github.com/hashicorp/golang-lru v0.5.3/go.mod h1:iADmTwqILo4mZ8BN3D2Q6+9jd8WM5uG
 github.com/hashicorp/hcl v1.0.0 h1:0Anlzjpi4vEasTeNFn2mLJgTSwt0+6sfsiTG8qcWGx4=
 github.com/hashicorp/hcl v1.0.0/go.mod h1:E5yfLk+7swimpb2L/Alb/PJmXilQ/rhwaUYs4T20WEQ=
 github.com/hpcloud/tail v1.0.0/go.mod h1:ab1qPbhIpdTxEkNHXyeSf5vhxWSCs/tWer42PpOxQnU=
+github.com/iancoleman/strcase v0.3.0 h1:nTXanmYxhfFAMjZL34Ov6gkzEsSJZ5DbhxWjvSASxEI=
+github.com/iancoleman/strcase v0.3.0/go.mod h1:iwCmte+B7n89clKwxIoIXy/HfoL7AsD47ZCWhYzw7ho=
 github.com/ianlancetaylor/demangle v0.0.0-20181102032728-5e5cf60278f6/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/ianlancetaylor/demangle v0.0.0-20200824232613-28f6c0f3b639/go.mod h1:aSSvb/t6k1mPoxDqO4vJh6VOCGPwU4O0C2/Eqndh1Sc=
 github.com/imkira/go-interpol v1.1.0 h1:KIiKr0VSG2CUW1hl1jpiyuzuJeKUUpC8iM1AIE7N1Vk=
@@ -522,6 +524,8 @@ github.com/streamingfast/dgrpc v0.0.0-20250115215805-6f4ad2be7eef h1:He9qXjmnDtx
 github.com/streamingfast/dgrpc v0.0.0-20250115215805-6f4ad2be7eef/go.mod h1:bxRfCxRKQ0ZH2BGi6UcYdlH0nkj8yERm3kpP1jPLQLY=
 github.com/streamingfast/dhammer v0.0.0-20230125192823-c34bbd561bd4 h1:HKi8AIkLBzxZWmbCRUo1RxoOLK33iXO6gZprfsE9rf4=
 github.com/streamingfast/dhammer v0.0.0-20230125192823-c34bbd561bd4/go.mod h1:ehPytv7E4rI65iLcrwTes4rNGGqPPiugnH+20nDQyp4=
+github.com/streamingfast/dhttp v0.0.2-0.20250717224215-966e6d2b148a h1:hoIE5ncdt1k8beZ/AGZDhkRYwJ5iBC9aUNzVqhBfHo0=
+github.com/streamingfast/dhttp v0.0.2-0.20250717224215-966e6d2b148a/go.mod h1:crIc4zAh61ERm49E2yE2S3wfIrV5Q1BBNM7qq12INC0=
 github.com/streamingfast/dmetering v0.0.0-20241101155221-489f5a9d9139 h1:a22XzjeY7n9Xv+0yJMV2pzuPptALtOu6jdg69pOwuO4=
 github.com/streamingfast/dmetering v0.0.0-20241101155221-489f5a9d9139/go.mod h1:UqWuX3REU/IInBUaymFN2eLjuvz+/0SsoUFjeQlLNyI=
 github.com/streamingfast/dmetrics v0.0.0-20230919161904-206fa8ebd545 h1:SUl04bZKGAv207lp7/6CHOJIRpjUKunwItrno3K463Y=
@@ -547,6 +551,8 @@ github.com/streamingfast/shutter v1.5.0 h1:NpzDYzj0HVpSiDJVO/FFSL6QIK/YKOxY0gJAt
 github.com/streamingfast/shutter v1.5.0/go.mod h1:B/T6efqdeMGbGwjzPS1ToXzYZI4kDzI5/u4I+7qbjY8=
 github.com/streamingfast/substreams v1.12.0 h1:AhsXsJTmwukurvD65YVqcEkIdFjSa0S1HO3sU4Vq7sY=
 github.com/streamingfast/substreams v1.12.0/go.mod h1:Dgbt37alWqMyahFQ4rdhX8iFLZHn2qD8TBhcP3NIuW8=
+github.com/streamingfast/validator v0.0.0-20231124184318-71ec8080e4ae h1:XRNPwqkhmsDRKmncN4oCxiTu3LpFswmVDOTmZdoKQkg=
+github.com/streamingfast/validator v0.0.0-20231124184318-71ec8080e4ae/go.mod h1:9btia9gJR6TKKdauYb5MyDAG/D2ye/NDXLHnyyD6mVc=
 github.com/stretchr/objx v0.1.0/go.mod h1:HFkY916IF+rwdDfMAkV7OtwuqBVzrE8GR6GFx+wExME=
 github.com/stretchr/objx v0.4.0/go.mod h1:YvHI0jy2hoMjB+UWwv71VJQ9isScKT/TqJzVSSt89Yw=
 github.com/stretchr/objx v0.5.0/go.mod h1:Yh+to48EsGEfYuaHDzXPcE3xhTkx73EhmCGUpEOglKo=
@@ -571,6 +577,8 @@ github.com/teris-io/shortid v0.0.0-20201117134242-e59966efd125 h1:3SNcvBmEPE1YlB
 github.com/teris-io/shortid v0.0.0-20201117134242-e59966efd125/go.mod h1:M8agBzgqHIhgj7wEn9/0hJUZcrvt9VY+Ln+S1I5Mha0=
 github.com/test-go/testify v1.1.4 h1:Tf9lntrKUMHiXQ07qBScBTSA0dhYQlu83hswqelv1iE=
 github.com/test-go/testify v1.1.4/go.mod h1:rH7cfJo/47vWGdi4GPj16x3/t1xGOj2YxzmNQzk2ghU=
+github.com/thedevsaddam/govalidator v1.9.6 h1:hWLpGOHkDjzM+uQh4xankDUm8dgXaRft/B1/sDAShKU=
+github.com/thedevsaddam/govalidator v1.9.6/go.mod h1:Ilx8u7cg5g3LXbSS943cx5kczyNuUn7LH/cK5MYuE90=
 github.com/tsenart/deadcode v0.0.0-20160724212837-210d2dc333e9/go.mod h1:q+QjxYvZ+fpjMXqs+XEriussHjSYqeXVnAdSV1tkMYk=
 github.com/valyala/bytebufferpool v1.0.0 h1:GqA5TC/0021Y/b9FG4Oi9Mr3q7XYx6KllzawFIhcdPw=
 github.com/valyala/bytebufferpool v1.0.0/go.mod h1:6bBcMArwyJ5K/AmCkWv1jt77kVWyCJ6HpOuEn7z0Csc=

@@ -32,18 +32,18 @@ type Fetcher struct {
 	latestBlockRetryInterval time.Duration
 	lastBlockInfo            *LastBlockInfo
 	decoder                  *decoder.Decoder
-	clientLimit              int
+	transactionFetchLimit    int
 
 	logger *zap.Logger
 }
 
-func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, clientLimit int, logger *zap.Logger) *Fetcher {
+func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transactionFetchLimit int, logger *zap.Logger) *Fetcher {
 	return &Fetcher{
 		fetchInterval:            fetchInterval,
 		latestBlockRetryInterval: latestBlockRetryInterval,
 		lastBlockInfo:            NewLastBlockInfo(),
 		decoder:                  decoder.NewDecoder(logger),
-		clientLimit:              clientLimit,
+		transactionFetchLimit:    transactionFetchLimit,
 		logger:                   logger,
 	}
 }
@@ -94,10 +94,10 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	numOfTransactions := len(ledgerMetadata.V1.TxProcessing)
 	f.logger.Debug("fetching transactions", zap.Uint64("block_num", requestBlockNum), zap.Int("num_of_transactions", numOfTransactions))
-	if numOfTransactions > f.clientLimit {
+	if numOfTransactions > f.transactionFetchLimit {
 		// There is a hard limit on the number of transactions
 		// to fetch. The RPC providers tipically set the maximum limit to 200.
-		numOfTransactions = f.clientLimit
+		numOfTransactions = f.transactionFetchLimit
 	}
 
 	transactions, err := client.GetTransactions(ctx, requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
@@ -240,7 +240,7 @@ func convertBlock(stellarBlk *pbstellar.Block) (*pbbstream.Block, error) {
 		Number:    stellarBlk.Number,
 		Id:        stellarBlockHash,
 		ParentId:  previousStellarBlockHash,
-		Timestamp: timestamppb.New(stellarBlk.CreatedAt.AsTime()),
+		Timestamp: stellarBlk.CreatedAt,
 		LibNum:    stellarBlk.Number - 1, // every block in stellar is final
 		ParentNum: stellarBlk.Number - 1, // every block in stellar is final
 		Payload:   anyBlock,

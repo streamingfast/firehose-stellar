@@ -7,6 +7,7 @@ require (
 	github.com/spf13/cobra v1.8.1
 	github.com/streamingfast/bstream v0.0.2-0.20250114192704-6a23c67c0b4d
 	github.com/streamingfast/cli v0.0.4-0.20250116003948-fbf66c930cce
+	github.com/streamingfast/dhttp v0.0.2-0.20250717224215-966e6d2b148a
 	github.com/streamingfast/firehose-core v1.7.0
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
 	go.uber.org/zap v1.27.0
@@ -16,13 +17,16 @@ require (
 	github.com/go-chi/chi v4.1.2+incompatible // indirect
 	github.com/go-errors/errors v1.5.1 // indirect
 	github.com/gorilla/schema v1.4.1 // indirect
+	github.com/iancoleman/strcase v0.3.0 // indirect
 	github.com/manucorporat/sse v0.0.0-20160126180136-ee05b128a739 // indirect
 	github.com/pkg/errors v0.9.1 // indirect
 	github.com/sagikazarmark/locafero v0.3.0 // indirect
 	github.com/sagikazarmark/slog-shim v0.1.0 // indirect
 	github.com/segmentio/go-loggly v0.5.1-0.20171222203950-eb91657e62b2 // indirect
 	github.com/sourcegraph/conc v0.3.0 // indirect
+	github.com/streamingfast/validator v0.0.0-20231124184318-71ec8080e4ae // indirect
 	github.com/stretchr/objx v0.5.2 // indirect
+	github.com/thedevsaddam/govalidator v1.9.6 // indirect
 )
 
 require (

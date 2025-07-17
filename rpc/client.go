@@ -7,8 +7,11 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"time"
 
+	"github.com/streamingfast/dhttp"
 	"github.com/streamingfast/firehose-stellar/types"
+	"github.com/streamingfast/logging"
 	"go.uber.org/zap"
 )
 
@@ -18,11 +21,14 @@ type Client struct {
 	logger      *zap.Logger
 }
 
-func NewClient(rpcEndpoint string, logger *zap.Logger) *Client {
+func NewClient(rpcEndpoint string, logger *zap.Logger, tracer logging.Tracer) *Client {
 	return &Client{
 		rpcEndpoint: rpcEndpoint,
-		httpClient:  http.DefaultClient,
-		logger:      logger,
+		httpClient: &http.Client{
+			Transport: dhttp.NewLoggingRoundTripper(logger, tracer, http.DefaultTransport),
+			Timeout:   60 * time.Second, // Set a reasonable timeout for HTTP requests
+		},
+		logger: logger,
 	}
 }
 

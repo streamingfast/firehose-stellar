@@ -29,12 +29,12 @@ func NewFetchCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 	cmd.Flags().Duration("latest-block-retry-interval", time.Second, "interval between fetch")
 	cmd.Flags().Duration("max-block-fetch-duration", 3*time.Second, "maximum delay before considering a block fetch as failed")
 	cmd.Flags().Int("block-fetch-batch-size", 1, "Number of blocks to fetch in a single batch")
-	cmd.Flags().Int("client-limit", 200, "Limit for clients to fetch transactions")
+	cmd.Flags().Int("transaction-fetch-limit", 200, "Maximum number of transactions to fetch at the same time")
 
 	return cmd
 }
 
-func fetchRunE(logger *zap.Logger, _ logging.Tracer) firecore.CommandExecutor {
+func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecutor {
 	return func(cmd *cobra.Command, args []string) (err error) {
 		stateDir := sflags.MustGetString(cmd, "state-dir")
 
@@ -60,14 +60,14 @@ func fetchRunE(logger *zap.Logger, _ logging.Tracer) firecore.CommandExecutor {
 		rpcEndpoints := sflags.MustGetStringArray(cmd, "endpoints")
 		rpcClients := firecoreRPC.NewClients(maxBlockFetchDuration, rollingStrategy, logger)
 		for _, rpcEndpoint := range rpcEndpoints {
-			client := rpc.NewClient(rpcEndpoint, logger)
+			client := rpc.NewClient(rpcEndpoint, logger, tracer)
 			rpcClients.Add(client)
 		}
 
-		clientLimit := sflags.MustGetInt(cmd, "client-limit")
+		transactionFetchLimit := sflags.MustGetInt(cmd, "transaction-fetch-limit")
 
 		poller := blockpoller.New(
-			rpc.NewFetcher(fetchInterval, latestBlockRetryInterval, clientLimit, logger),
+			rpc.NewFetcher(fetchInterval, latestBlockRetryInterval, transactionFetchLimit, logger),
 			blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block"),
 			rpcClients,
 			blockpoller.WithStoringState[*rpc.Client](stateDir),
