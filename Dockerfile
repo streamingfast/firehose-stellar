@@ -6,7 +6,7 @@ FROM ubuntu:24.04
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get -y install -y \
-    ca-certificates vim htop iotop sysstat \
+    ca-certificates vim htop iotop \
     dstat strace lsof curl jq tzdata && \
     rm -rf /var/cache/apt /var/lib/apt/lists/*
 
