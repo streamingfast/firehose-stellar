@@ -89,7 +89,7 @@ jobs:
 
   slack-notifications:
     needs: [build]
-    runs-on: ubuntu-20.04
+    runs-on: ubuntu-latest
     steps:
       - name: Slack notification
         env:
