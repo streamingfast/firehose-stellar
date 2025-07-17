@@ -2,7 +2,7 @@
 
 FROM ghcr.io/streamingfast/firehose-core:v1.6.9 as core
 
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 
 RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
     apt-get -y install -y \
