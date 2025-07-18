@@ -1,21 +1,22 @@
-# syntax=docker/dockerfile:1.2
+# syntax=docker/dockerfile:1.4
 
-FROM ghcr.io/streamingfast/firehose-core:v1.6.9 as core
+FROM golang:1.24-bookworm AS build
+WORKDIR /app
 
-FROM ubuntu:24.04
+# Copy go mod files first for better caching
+COPY go.mod go.sum ./
+RUN go mod download
 
-RUN DEBIAN_FRONTEND=noninteractive apt-get update && \
-    apt-get -y install -y \
-    ca-certificates vim htop iotop \
-    dstat strace lsof curl jq tzdata && \
-    rm -rf /var/cache/apt /var/lib/apt/lists/*
+# Copy source code
+COPY . ./
 
-RUN rm /etc/localtime && ln -snf /usr/share/zoneinfo/America/Montreal /etc/localtime && dpkg-reconfigure -f noninteractive tzdata
+# Build the binary with version information
+ARG VERSION="dev"
+RUN go build -v -ldflags "-X main.version=${VERSION}" -o firestellar ./cmd/firestellar
 
-ADD /firestellar /app/firestellar
+FROM ghcr.io/streamingfast/firehose-core:v1.10.1
 
-ENV PATH "$PATH:/app"
+# Copy the firestellar binary to the firehose-core image
+COPY --from=build /app/firestellar /app/firestellar
 
-COPY --from=core /app/firecore /app/firecore
-
-ENTRYPOINT ["/app/firestellar"]
+ENTRYPOINT ["/app/firecore"]
