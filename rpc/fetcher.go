@@ -8,6 +8,7 @@ import (
 	"strconv"
 	"time"
 
+	"github.com/stellar/go/xdr"
 	pbbstream "github.com/streamingfast/bstream/pb/sf/bstream/v1"
 	"github.com/streamingfast/firehose-stellar/decoder"
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
@@ -90,17 +91,34 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		return nil, false, fmt.Errorf("decoding ledger metadata: %w", err)
 	}
 
-	ledgerHeader := ledgerMetadata.V1.LedgerHeader
-
-	numOfTransactions := len(ledgerMetadata.V1.TxProcessing)
-	f.logger.Debug("fetching transactions", zap.Uint64("block_num", requestBlockNum), zap.Int("num_of_transactions", numOfTransactions))
-	if numOfTransactions > f.transactionFetchLimit {
-		// There is a hard limit on the number of transactions
-		// to fetch. The RPC providers tipically set the maximum limit to 200.
-		numOfTransactions = f.transactionFetchLimit
+	var ledgerHeader xdr.LedgerHeaderHistoryEntry
+	switch {
+	case ledgerMetadata.V2 != nil:
+		ledgerHeader = ledgerMetadata.V2.LedgerHeader
+	case ledgerMetadata.V1 != nil:
+		ledgerHeader = ledgerMetadata.V1.LedgerHeader
+	default:
+		return nil, false, fmt.Errorf("ledger metadata does not contain V1 or V2 data: %v", ledgerMetadata)
 	}
 
-	transactions, err := client.GetTransactions(ctx, requestBlockNum, numOfTransactions, f.lastBlockInfo.cursor)
+	var trxCount int
+	switch {
+	case ledgerMetadata.V2 != nil:
+		trxCount = len(ledgerMetadata.V2.TxProcessing)
+	case ledgerMetadata.V1 != nil:
+		trxCount = len(ledgerMetadata.V1.TxProcessing)
+	default:
+		return nil, false, fmt.Errorf("ledger metadata does not contain V1 or V2 data: %v", ledgerMetadata)
+	}
+
+	f.logger.Debug("fetching transactions", zap.Uint64("block_num", requestBlockNum), zap.Int("trx_count", trxCount))
+	if trxCount > f.transactionFetchLimit {
+		// There is a hard limit on the number of transactions
+		// to fetch. The RPC providers tipically set the maximum limit to 200.
+		trxCount = f.transactionFetchLimit
+	}
+
+	transactions, err := client.GetTransactions(ctx, requestBlockNum, trxCount, f.lastBlockInfo.cursor)
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching transactions: %w", err)
 	}
@@ -126,7 +144,6 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 		events := &pbstellar.Events{}
 		if trx.Events != nil {
-
 			diagnosticEvents := make([][]byte, 0)
 			for _, event := range trx.Events.DiagnosticEventsXdr {
 				decodedEvent, err := base64.StdEncoding.DecodeString(event)
@@ -168,9 +185,9 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			events.ContractEventsXdr = contractEvents
 		}
 
-		transactionMeta := types.NewTransactionMeta(txHashBytes, trx.Status, txEnvelopeBytes, txResultBytes, txResultMetaBytes, events)
-
-		transactionMetas = append(transactionMetas, transactionMeta)
+		transactionMetas = append(transactionMetas,
+			types.NewTransactionMeta(txHashBytes, trx.Status, txEnvelopeBytes, txResultBytes, txResultMetaBytes, events),
+		)
 	}
 
 	stellarTransactions := make([]*pbstellar.Transaction, 0)

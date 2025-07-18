@@ -56,3 +56,21 @@ func Test_FetchSpecificLedger_ProtocolUpgrade23(t *testing.T) {
 	require.Equal(t, uint32(23), stellarBlock.Header.LedgerVersion)
 	require.Equal(t, 8, len(stellarBlock.Transactions))
 }
+
+func Test_FetchSpecificLedger_ProtocolUpgrade23_MetadataV2(t *testing.T) {
+	const BLOCK_TO_FETCH = uint64(500202)
+
+	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
+	f := NewFetcher(time.Second, time.Second, 200, testLog)
+	b, _, err := f.Fetch(context.Background(), c, BLOCK_TO_FETCH)
+	require.NoError(t, err)
+
+	stellarBlock := &pbstellar.Block{}
+	require.NoError(t, b.Payload.UnmarshalTo(stellarBlock))
+
+	require.NotNil(t, b)
+	require.Equal(t, BLOCK_TO_FETCH, b.Number)
+
+	require.Equal(t, uint32(23), stellarBlock.Header.LedgerVersion)
+	require.Equal(t, 3, len(stellarBlock.Transactions))
+}
