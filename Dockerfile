@@ -24,5 +24,5 @@ ARG BINARY_NAME=firestellar
 # Copy the binary to the firehose-core image
 COPY --from=build "/app/${BINARY_NAME}" "/app/${BINARY_NAME}"
 
-# We use firecore entrypoint since it's the main application that people should run to setup stellar
+# We use firecore entrypoint since it's the main application that people should run to setup Firehose stack
 ENTRYPOINT ["/app/firecore"]
