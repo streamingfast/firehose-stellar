@@ -1,4 +1,5 @@
-# syntax=docker/dockerfile:1.4
+ARG FIRECORE_VERSION=v1.10.1
+ARG BINARY_NAME=firestellar
 
 FROM golang:1.24-bookworm AS build
 WORKDIR /app
@@ -11,12 +12,17 @@ RUN go mod download
 COPY . ./
 
 # Build the binary with version information
-ARG VERSION="dev"
-RUN go build -v -ldflags "-X main.version=${VERSION}" -o firestellar ./cmd/firestellar
+ARG VERSION="edge"
+ARG BINARY_NAME=firestellar
 
-FROM ghcr.io/streamingfast/firehose-core:v1.10.1
+RUN go build -v -ldflags "-X main.version=${VERSION}" -o "${BINARY_NAME}" "./cmd/${BINARY_NAME}"
 
-# Copy the firestellar binary to the firehose-core image
-COPY --from=build /app/firestellar /app/firestellar
+FROM ghcr.io/streamingfast/firehose-core:${FIRECORE_VERSION}
 
+ARG BINARY_NAME=firestellar
+
+# Copy the binary to the firehose-core image
+COPY --from=build "/app/${BINARY_NAME}" "/app/${BINARY_NAME}"
+
+# We use firecore entrypoint since it's the main application that people should run to setup stellar
 ENTRYPOINT ["/app/firecore"]
