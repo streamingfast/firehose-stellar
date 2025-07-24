@@ -19,6 +19,20 @@ func main() {
 	Run(
 		"firestellar",
 		"Firehose Stellar block fetching and tooling",
+		Description(`
+			Firehose Stellar implements the Firehose Reader protocol for Stellar,
+			via 'firestellar rpc fetch <flags>' (see 'firestellar rpc fetch --help').
+
+			It is expected to be used with the Firehose Stack by operating 'firecore'
+			binary which spans Firehose Stellar Reader as a subprocess and reads from
+			it producing blocks and offering Firehose & Substreams APIs.
+
+			Read the Firehose documentation at firehose.streamingfast.io for more
+			information how to use this binary.
+
+			The binary also contains a few commands to test the Stellar block
+			fetching capabilities, such as fetching a block by number or hash.
+		`),
 
 		ConfigureVersion(version),
 		ConfigureViper("FIRESTELLAR"),
