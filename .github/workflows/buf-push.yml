@@ -1,0 +1,24 @@
+---
+name: Buf Push
+
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - "main"
+
+jobs:
+  buf-push:
+    runs-on: ubuntu-24.04
+    if: github.repository_owner == 'streamingfast'
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: bufbuild/buf-setup-action@v1
+        with:
+          github_token: ${{ github.token }}
+
+      - uses: bufbuild/buf-push-action@v1
+        with:
+          buf_token: ${{ secrets.BUF_TOKEN }}
