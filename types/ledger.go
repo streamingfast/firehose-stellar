@@ -1,5 +1,17 @@
 package types
 
+var _ error = (*RPCError)(nil)
+
+type RPCError struct {
+	Code    int     `json:"code"`
+	Message string  `json:"message"`
+	Data    *string `json:"data,omitempty"`
+}
+
+func (r *RPCError) Error() string {
+	return "JSON-RPC error: " + r.Message
+}
+
 type LatestLedgerRequest struct {
 	JSONRPC string `json:"jsonrpc"`
 	ID      int    `json:"id"`
@@ -17,6 +29,7 @@ func NewLatestLedgerRequest() *LatestLedgerRequest {
 type GetLatestLedgerResponse struct {
 	JSONRPC string                `json:"jsonrpc"`
 	ID      int                   `json:"id"`
+	Error   *RPCError             `json:"error,omitempty"`
 	Result  GetLatestLedgerResult `json:"result"`
 }
 
@@ -45,6 +58,7 @@ func NewLedgerRequest(startLedger uint64, pagination *Pagination) LedgerRequest 
 type GetLedgersResponse struct {
 	JSONRPC string           `json:"jsonrpc"`
 	ID      int              `json:"id"`
+	Error   *RPCError        `json:"error,omitempty"`
 	Result  GetLedgersResult `json:"result"`
 }
 

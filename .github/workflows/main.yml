@@ -15,19 +15,19 @@ jobs:
     runs-on: ${{ matrix.os }}
     strategy:
       matrix:
-        go-version: [1.22.x]
-        os: [ubuntu-latest, macos-latest]
+        go-version: [1.24.x]
+        os: [ubuntu-latest]
     steps:
       - name: Set up Go
-        uses: actions/setup-go@v2
+        uses: actions/setup-go@v5
         with:
           go-version: ${{ matrix.go-version }}
 
       - name: Check out code
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
 
       - name: Cache Go modules
-        uses: actions/cache@v3
+        uses: actions/cache@v4
         with:
           path: |
             ~/go/pkg/mod
@@ -37,10 +37,8 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
-      - name: Run Stellar Tests
+      - name: Build & Run Stellar Tests
         working-directory: .
-        run: go test ./...
-
-      - name: Build Stellar
-        working-directory: .
-        run: go build ./...
+        run: |-
+          go build ./...
+          go test ./...

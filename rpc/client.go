@@ -53,6 +53,10 @@ func (c *Client) GetLatestLedger(ctx context.Context) (*types.GetLatestLedgerRes
 		return nil, fmt.Errorf("original body: %s failed to unmarshal JSON: %w", string(body), err)
 	}
 
+	if response.Error != nil {
+		return nil, fmt.Errorf("rpc error: %w", response.Error)
+	}
+
 	return &response.Result, nil
 }
 
@@ -76,6 +80,10 @@ func (c *Client) GetLedgers(ctx context.Context, startLedgerNum uint64) ([]types
 	err = decoder.Decode(&response)
 	if err != nil {
 		return nil, fmt.Errorf("original body: %s failed to unmarshal JSON: %w", string(body), err)
+	}
+
+	if response.Error != nil {
+		return nil, fmt.Errorf("rpc error: %w", response.Error)
 	}
 
 	return response.Result.Ledgers, nil

@@ -24,6 +24,8 @@ func Test_Fetch(t *testing.T) {
 }
 
 func Test_FetchSpecificLedger(t *testing.T) {
+	t.Skip("This test leads to fetching ledger: rpc error: JSON-RPC error: [-32003] request failed to process due to internal issue on our provider, check back in some time to re-activate")
+
 	const BLOCK_TO_FETCH = uint64(58049417)
 
 	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
@@ -40,6 +42,8 @@ func Test_FetchSpecificLedger(t *testing.T) {
 }
 
 func Test_FetchSpecificLedger_ProtocolUpgrade23(t *testing.T) {
+	t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
+
 	const BLOCK_TO_FETCH = uint64(500201)
 
 	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
@@ -58,6 +62,8 @@ func Test_FetchSpecificLedger_ProtocolUpgrade23(t *testing.T) {
 }
 
 func Test_FetchSpecificLedger_ProtocolUpgrade23_MetadataV2(t *testing.T) {
+	t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
+
 	const BLOCK_TO_FETCH = uint64(500202)
 
 	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
