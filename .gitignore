@@ -5,3 +5,5 @@
 .vscode
 devel/data
 /firestellar
+/build
+/dist
