@@ -7,7 +7,7 @@ require (
 	github.com/go-json-experiment/json v0.0.0-20250116043007-0640c115aea5
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	github.com/spf13/cobra v1.8.1
-	github.com/stellar/go v0.0.0-20250716105826-e39e256e2da0
+	github.com/stellar/go v0.0.0-20250814141936-1ccc2b074af6
 	github.com/stellar/go-xdr v0.0.0-20231122183749-b53fb00bcac2
 	github.com/streamingfast/bstream v0.0.2-0.20250114192704-6a23c67c0b4d
 	github.com/streamingfast/cli v0.0.4-0.20250116003948-fbf66c930cce
