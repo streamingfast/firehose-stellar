@@ -11,7 +11,7 @@ import (
 // Injected at build time
 var version = "<missing>"
 
-var logger, _ = logging.PackageLogger("firestellar", "github.com/streamingfast/firehose-stellar")
+var logger, tracer = logging.PackageLogger("firestellar", "github.com/streamingfast/firehose-stellar")
 
 func main() {
 	logging.InstantiateLoggers(logging.WithDefaultLevel(zap.InfoLevel))
@@ -36,6 +36,10 @@ func main() {
 
 		ConfigureVersion(version),
 		ConfigureViper("FIRESTELLAR"),
+
+		Group("fetch", "Reader Node fetch RPC command",
+			CobraCmd(NewFetchCmd(logger, tracer)),
+		),
 
 		CobraCmd(NewToolDecodeBlockCmd()),
 		CobraCmd(NewToolCreateAccountCmd()),
