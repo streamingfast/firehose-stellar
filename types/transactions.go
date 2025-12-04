@@ -21,10 +21,55 @@ func NewGetTransactionsRquest(startLedger uint64, pagination *Pagination) GetTra
 	}
 }
 
-type GetTransactionResponse struct {
+type GetTransactionRequest struct {
+	JSONRPC string `json:"jsonrpc"`
+	ID      int    `json:"id"`
+	Method  string `json:"method"`
+	Params  struct {
+		Hash string `json:"hash"`
+	} `json:"params"`
+}
+
+func NewGetTransactionRequest(hash string) GetTransactionRequest {
+	return GetTransactionRequest{
+		JSONRPC: "2.0",
+		ID:      8675309,
+		Method:  "getTransaction",
+		Params: struct {
+			Hash string `json:"hash"`
+		}{Hash: hash},
+	}
+}
+
+type GetTransactionsResponse struct {
 	JSONRPC string                `json:"jsonrpc"`
 	ID      int                   `json:"id"`
+	Error   *RPCError             `json:"error,omitempty"`
 	Result  GetTransactionsResult `json:"result"`
+}
+
+type GetTransactionResponse struct {
+	JSONRPC string               `json:"jsonrpc"`
+	ID      int                  `json:"id"`
+	Error   *RPCError            `json:"error,omitempty"`
+	Result  GetTransactionResult `json:"result"`
+}
+
+type GetTransactionResult struct {
+	LatestLedger          uint64     `json:"latestLedger"`
+	LatestLedgerCloseTime string     `json:"latestLedgerCloseTime"`
+	OldestLedger          uint64     `json:"oldestLedger"`
+	OldestLedgerCloseTime string     `json:"oldestLedgerCloseTime"`
+	Status                string     `json:"status"`
+	TxHash                string     `json:"txHash"`
+	ApplicationOrder      int        `json:"applicationOrder"`
+	FeeBump               bool       `json:"feeBump"`
+	EnvelopeXdr           string     `json:"envelopeXdr"`
+	ResultXdr             string     `json:"resultXdr"`
+	ResultMetaXdr         string     `json:"resultMetaXdr"`
+	Events                *RPCEvents `json:"events"`
+	Ledger                uint64     `json:"ledger"`
+	CreatedAt             string     `json:"createdAt"`
 }
 
 type Transaction struct {

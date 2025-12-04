@@ -92,6 +92,35 @@ func (c *Client) GetLedgers(ctx context.Context, startLedgerNum uint64) ([]types
 	return response.Result.Ledgers, nil
 }
 
+// GetTransaction returns a single transaction by hash
+func (c *Client) GetTransaction(ctx context.Context, hash string) (*types.GetTransactionResult, error) {
+	payload := types.NewGetTransactionRequest(hash)
+
+	rpcBody, err := json.Marshal(payload)
+	if err != nil {
+		return nil, fmt.Errorf("failed to marshal JSON: %w", err)
+	}
+
+	body, err := c.makeRequest(ctx, rpcBody)
+	if err != nil {
+		return nil, fmt.Errorf("failed to get transaction: %w", err)
+	}
+
+	var response types.GetTransactionResponse
+	decoder := json.NewDecoder(bytes.NewBuffer(body))
+	decoder.DisallowUnknownFields() // Fail on unknown fields
+	err = decoder.Decode(&response)
+	if err != nil {
+		return nil, fmt.Errorf("original body: %s failed to unmarshal JSON: %w", string(body), err)
+	}
+
+	if response.Error != nil {
+		return nil, fmt.Errorf("rpc error: %w", response.Error)
+	}
+
+	return &response.Result, nil
+}
+
 // TODO: find out the limit from the RPC Provider and set it in the pagination or should we use the value
 // 		from the header metadata of the ledger which gives out a number of transactions per ledger
 
@@ -137,16 +166,20 @@ func (c *Client) getTransactions(ctx context.Context, ledgerNum uint64, limit in
 		return cursor, nil, fmt.Errorf("failed to get transactions: %w", err)
 	}
 
-	var transactions types.GetTransactionResponse
+	var response types.GetTransactionsResponse
 	decoder := json.NewDecoder(bytes.NewBuffer(body))
 	decoder.DisallowUnknownFields() // Fail on unknown fields
-	err = decoder.Decode(&transactions)
+	err = decoder.Decode(&response)
 	if err != nil {
 		return cursor, nil, fmt.Errorf("original body: %s failed to unmarshal JSON: %w", string(body), err)
 	}
 
-	cursor = transactions.Result.Cursor
-	return cursor, transactions.Result.Transactions, nil
+	if response.Error != nil {
+		return cursor, nil, fmt.Errorf("rpc error: %w", response.Error)
+	}
+
+	cursor = response.Result.Cursor
+	return cursor, response.Result.Transactions, nil
 }
 
 func (c *Client) makeRequest(ctx context.Context, reqBody []byte) ([]byte, error) {
