@@ -47,6 +47,7 @@ func main() {
 		CobraCmd(NewToolIssueAssetCmd()),
 		CobraCmd(NewToolSendPaymentAssetCmd()),
 		CobraCmd(NewToolDecodeSeedCmd()),
+		CobraCmd(NewToolCompareFetcherBlocksCmd()),
 
 		OnCommandErrorLogAndExit(logger),
 	)

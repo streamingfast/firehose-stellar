@@ -6,7 +6,7 @@ import (
 	"net/http"
 
 	"github.com/spf13/cobra"
-	"github.com/stellar/go/keypair"
+	"github.com/stellar/go-stellar-sdk/keypair"
 	"go.uber.org/zap"
 )
 

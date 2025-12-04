@@ -24,9 +24,9 @@ func Test_Fetch(t *testing.T) {
 }
 
 func Test_FetchSpecificLedger(t *testing.T) {
-	t.Skip("This test leads to fetching ledger: rpc error: JSON-RPC error: [-32003] request failed to process due to internal issue on our provider, check back in some time to re-activate")
+	//t.Skip("This test leads to fetching ledger: rpc error: JSON-RPC error: [-32003] request failed to process due to internal issue on our provider, check back in some time to re-activate")
 
-	const BLOCK_TO_FETCH = uint64(58049417)
+	const BLOCK_TO_FETCH = uint64(60132634)
 
 	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
 	f := NewFetcher(time.Second, time.Second, 200, testLog)

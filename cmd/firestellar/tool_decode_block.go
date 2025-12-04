@@ -9,7 +9,7 @@ import (
 	"github.com/go-json-experiment/json"
 	"github.com/go-json-experiment/json/jsontext"
 	"github.com/spf13/cobra"
-	xdrTypes "github.com/stellar/go/xdr"
+	xdrTypes "github.com/stellar/go-stellar-sdk/xdr"
 	"github.com/streamingfast/bstream"
 	pbbstream "github.com/streamingfast/bstream/pb/sf/bstream/v1"
 	"github.com/streamingfast/cli"

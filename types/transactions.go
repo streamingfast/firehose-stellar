@@ -1,7 +1,7 @@
 package types
 
 import (
-	xdrTypes "github.com/stellar/go/xdr"
+	xdrTypes "github.com/stellar/go-stellar-sdk/xdr"
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
 )
 

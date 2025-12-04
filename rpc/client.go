@@ -86,6 +86,9 @@ func (c *Client) GetLedgers(ctx context.Context, startLedgerNum uint64) ([]types
 		return nil, fmt.Errorf("rpc error: %w", response.Error)
 	}
 
+	// TODO: The cursor in response.Result.Cursor is available for pagination but not currently used
+	// since we only request 1 ledger at a time
+
 	return response.Result.Ledgers, nil
 }
 

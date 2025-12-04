@@ -5,8 +5,8 @@ import (
 	"encoding/base64"
 	"fmt"
 
-	xdr "github.com/stellar/go-xdr/xdr3"
-	xdrTypes "github.com/stellar/go/xdr"
+	xdr "github.com/stellar/go-stellar-sdk/xdr"
+	xdrTypes "github.com/stellar/go-stellar-sdk/xdr"
 
 	"go.uber.org/zap"
 )
