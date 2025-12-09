@@ -97,11 +97,6 @@ func (m *Transaction) CloneVT() *Transaction {
 		copy(tmpBytes, rhs)
 		r.EnvelopeXdr = tmpBytes
 	}
-	if rhs := m.ResultMetaXdr; rhs != nil {
-		tmpBytes := make([]byte, len(rhs))
-		copy(tmpBytes, rhs)
-		r.ResultMetaXdr = tmpBytes
-	}
 	if rhs := m.ResultXdr; rhs != nil {
 		tmpBytes := make([]byte, len(rhs))
 		copy(tmpBytes, rhs)
@@ -282,9 +277,6 @@ func (this *Transaction) EqualVT(that *Transaction) bool {
 		return false
 	}
 	if string(this.EnvelopeXdr) != string(that.EnvelopeXdr) {
-		return false
-	}
-	if string(this.ResultMetaXdr) != string(that.ResultMetaXdr) {
 		return false
 	}
 	if string(this.ResultXdr) != string(that.ResultXdr) {
@@ -567,13 +559,6 @@ func (m *Transaction) MarshalToSizedBufferVT(dAtA []byte) (int, error) {
 		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.ResultXdr)))
 		i--
 		dAtA[i] = 0x42
-	}
-	if len(m.ResultMetaXdr) > 0 {
-		i -= len(m.ResultMetaXdr)
-		copy(dAtA[i:], m.ResultMetaXdr)
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.ResultMetaXdr)))
-		i--
-		dAtA[i] = 0x3a
 	}
 	if len(m.EnvelopeXdr) > 0 {
 		i -= len(m.EnvelopeXdr)
@@ -906,13 +891,6 @@ func (m *Transaction) MarshalToSizedBufferVTStrict(dAtA []byte) (int, error) {
 		i--
 		dAtA[i] = 0x42
 	}
-	if len(m.ResultMetaXdr) > 0 {
-		i -= len(m.ResultMetaXdr)
-		copy(dAtA[i:], m.ResultMetaXdr)
-		i = protohelpers.EncodeVarint(dAtA, i, uint64(len(m.ResultMetaXdr)))
-		i--
-		dAtA[i] = 0x3a
-	}
 	if len(m.EnvelopeXdr) > 0 {
 		i -= len(m.EnvelopeXdr)
 		copy(dAtA[i:], m.EnvelopeXdr)
@@ -1136,10 +1114,6 @@ func (m *Transaction) SizeVT() (n int) {
 		n += 1 + protohelpers.SizeOfVarint(uint64(m.ApplicationOrder))
 	}
 	l = len(m.EnvelopeXdr)
-	if l > 0 {
-		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
-	}
-	l = len(m.ResultMetaXdr)
 	if l > 0 {
 		n += 1 + l + protohelpers.SizeOfVarint(uint64(l))
 	}
@@ -1758,40 +1732,6 @@ func (m *Transaction) UnmarshalVT(dAtA []byte) error {
 			m.EnvelopeXdr = append(m.EnvelopeXdr[:0], dAtA[iNdEx:postIndex]...)
 			if m.EnvelopeXdr == nil {
 				m.EnvelopeXdr = []byte{}
-			}
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ResultMetaXdr", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ResultMetaXdr = append(m.ResultMetaXdr[:0], dAtA[iNdEx:postIndex]...)
-			if m.ResultMetaXdr == nil {
-				m.ResultMetaXdr = []byte{}
 			}
 			iNdEx = postIndex
 		case 8:
@@ -2666,37 +2606,6 @@ func (m *Transaction) UnmarshalVTUnsafe(dAtA []byte) error {
 				return io.ErrUnexpectedEOF
 			}
 			m.EnvelopeXdr = dAtA[iNdEx:postIndex]
-			iNdEx = postIndex
-		case 7:
-			if wireType != 2 {
-				return fmt.Errorf("proto: wrong wireType = %d for field ResultMetaXdr", wireType)
-			}
-			var byteLen int
-			for shift := uint(0); ; shift += 7 {
-				if shift >= 64 {
-					return protohelpers.ErrIntOverflow
-				}
-				if iNdEx >= l {
-					return io.ErrUnexpectedEOF
-				}
-				b := dAtA[iNdEx]
-				iNdEx++
-				byteLen |= int(b&0x7F) << shift
-				if b < 0x80 {
-					break
-				}
-			}
-			if byteLen < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			postIndex := iNdEx + byteLen
-			if postIndex < 0 {
-				return protohelpers.ErrInvalidLength
-			}
-			if postIndex > l {
-				return io.ErrUnexpectedEOF
-			}
-			m.ResultMetaXdr = dAtA[iNdEx:postIndex]
 			iNdEx = postIndex
 		case 8:
 			if wireType != 2 {

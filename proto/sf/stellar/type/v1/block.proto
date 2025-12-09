@@ -28,7 +28,6 @@ message Transaction {
   google.protobuf.Timestamp created_at = 3;
   uint64 application_order = 5;
   bytes envelope_xdr = 6;
-  bytes result_meta_xdr = 7;
   bytes result_xdr = 8;
   Events events = 9;
 }

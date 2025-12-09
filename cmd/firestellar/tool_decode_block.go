@@ -122,19 +122,15 @@ func marshalMuxedAccount(e *jsontext.Encoder, value xdrTypes.MuxedAccount, optio
 
 func marshalTransaction(e *jsontext.Encoder, value *pbstellar.Transaction, options json.Options) error {
 	decoder := decoder.NewDecoder(zap.NewNop())
-	transactionMetadata, err := decoder.DecodeTransactionResultMetaFromBytes(value.ResultMetaXdr)
-	if err != nil {
-		return fmt.Errorf("unable to decode transaction meta: %w", err)
-	}
 
 	transactionEnvelope, err := decoder.DecodeTransactionEnvelopeFromBytes(value.EnvelopeXdr)
 	if err != nil {
-		return fmt.Errorf("unable to decode transaction meta: %w", err)
+		return fmt.Errorf("unable to decode transaction envelope: %w", err)
 	}
 
 	transactionResult, err := decoder.DecodeTransactionResultFromBytes(value.ResultXdr)
 	if err != nil {
-		return fmt.Errorf("unable to decode transaction meta: %w", err)
+		return fmt.Errorf("unable to decode transaction result: %w", err)
 	}
 
 	type DecodedTransaction struct {
@@ -143,7 +139,6 @@ func marshalTransaction(e *jsontext.Encoder, value *pbstellar.Transaction, optio
 		CreatedAt        *timestamppb.Timestamp
 		ApplicationOrder uint64
 		EnvelopeXdr      *xdrTypes.TransactionEnvelope
-		ResultMetaXdr    *xdrTypes.TransactionMeta
 		ResultXdr        *xdrTypes.TransactionResult
 	}
 
@@ -159,7 +154,6 @@ func marshalTransaction(e *jsontext.Encoder, value *pbstellar.Transaction, optio
 		CreatedAt:        value.CreatedAt,
 		ApplicationOrder: value.ApplicationOrder,
 		EnvelopeXdr:      transactionEnvelope,
-		ResultMetaXdr:    transactionMetadata,
 		ResultXdr:        transactionResult,
 	}
 

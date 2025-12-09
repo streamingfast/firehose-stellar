@@ -66,7 +66,6 @@ type GetTransactionResult struct {
 	FeeBump               bool       `json:"feeBump"`
 	EnvelopeXdr           string     `json:"envelopeXdr"`
 	ResultXdr             string     `json:"resultXdr"`
-	ResultMetaXdr         string     `json:"resultMetaXdr"`
 	Events                *RPCEvents `json:"events"`
 	Ledger                uint64     `json:"ledger"`
 	CreatedAt             string     `json:"createdAt"`
@@ -79,7 +78,6 @@ type Transaction struct {
 	FeeBump          bool   `json:"feeBump"`
 	EnvelopeXdr      string `json:"envelopeXdr"`
 	ResultXdr        string `json:"resultXdr"`
-	ResultMetaXdr    string `json:"resultMetaXdr"`
 	// deprecated, check the Events field instead
 	DiagnosticEventsXdr []string   `json:"diagnosticEventsXdr"`
 	Events              *RPCEvents `json:"events"`
@@ -97,13 +95,12 @@ type GetTransactionsResult struct {
 }
 
 type TransactionMeta struct {
-	Hash          []byte
-	Status        string
-	EnveloppeXdr  []byte
-	ResultXdr     []byte
-	ResultMetaXdr []byte
-	Meta          *xdrTypes.TransactionMeta
-	Events        *pbstellar.Events
+	Hash         []byte
+	Status       string
+	EnveloppeXdr []byte
+	ResultXdr    []byte
+	Meta         *xdrTypes.TransactionMeta
+	Events       *pbstellar.Events
 }
 
 func NewTransactionMeta(
@@ -111,15 +108,13 @@ func NewTransactionMeta(
 	status string,
 	envelopeXdr []byte,
 	resultXdr []byte,
-	resultMetaXdr []byte,
 	events *pbstellar.Events,
 ) *TransactionMeta {
 	return &TransactionMeta{
-		Hash:          hash,
-		Status:        status,
-		EnveloppeXdr:  envelopeXdr,
-		ResultXdr:     resultXdr,
-		ResultMetaXdr: resultMetaXdr,
-		Events:        events,
+		Hash:         hash,
+		Status:       status,
+		EnveloppeXdr: envelopeXdr,
+		ResultXdr:    resultXdr,
+		Events:       events,
 	}
 }
