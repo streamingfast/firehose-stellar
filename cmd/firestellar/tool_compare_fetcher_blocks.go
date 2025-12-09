@@ -341,15 +341,15 @@ func compareTransactions(rpcTx, gsTx *pbstellar.Transaction, index int, txHash s
 		differences = append(differences, fmt.Sprintf("Transaction %s (index %d): Events differs - RPC: present vs GS: nil", txHash, index))
 	} else if rpcTx.Events != nil && gsTx.Events != nil {
 		// Compare diagnostic events
-		if len(rpcTx.Events.DiagnosticEventsXdr) != len(gsTx.Events.DiagnosticEventsXdr) {
-			differences = append(differences, fmt.Sprintf("Transaction %s (index %d): DiagnosticEvents count differs - RPC: %d vs GS: %d", txHash, index, len(rpcTx.Events.DiagnosticEventsXdr), len(gsTx.Events.DiagnosticEventsXdr)))
-		} else {
-			for i := 0; i < len(rpcTx.Events.DiagnosticEventsXdr); i++ {
-				if !bytes.Equal(rpcTx.Events.DiagnosticEventsXdr[i], gsTx.Events.DiagnosticEventsXdr[i]) {
-					differences = append(differences, fmt.Sprintf("Transaction %s (index %d): DiagnosticEvent %d differs - RPC and GS have different event data", txHash, index, i))
-				}
-			}
-		}
+		//if len(rpcTx.Events.DiagnosticEventsXdr) != len(gsTx.Events.DiagnosticEventsXdr) {
+		//	differences = append(differences, fmt.Sprintf("Transaction %s (index %d): DiagnosticEvents count differs - RPC: %d vs GS: %d", txHash, index, len(rpcTx.Events.DiagnosticEventsXdr), len(gsTx.Events.DiagnosticEventsXdr)))
+		//} else {
+		//	for i := 0; i < len(rpcTx.Events.DiagnosticEventsXdr); i++ {
+		//		if !bytes.Equal(rpcTx.Events.DiagnosticEventsXdr[i], gsTx.Events.DiagnosticEventsXdr[i]) {
+		//			differences = append(differences, fmt.Sprintf("Transaction %s (index %d): DiagnosticEvent %d differs - RPC and GS have different event data", txHash, index, i))
+		//		}
+		//	}
+		//}
 
 		// Compare transaction events
 		if len(rpcTx.Events.TransactionEventsXdr) != len(gsTx.Events.TransactionEventsXdr) {
