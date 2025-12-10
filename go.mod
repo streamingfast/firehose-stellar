@@ -7,10 +7,9 @@ go 1.24
 require (
 	github.com/bobg/go-generics/v3 v3.4.0
 	github.com/go-json-experiment/json v0.0.0-20250116043007-0640c115aea5
-	github.com/josephburnett/jd v1.7.1
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	github.com/spf13/cobra v1.8.1
-	github.com/stellar/go-stellar-sdk v0.0.0-20251201220028-3321201669c7
+	github.com/stellar/go-stellar-sdk v0.0.0-20251210134752-6c46f8811c13
 	github.com/streamingfast/bstream v0.0.2-0.20250114192704-6a23c67c0b4d
 	github.com/streamingfast/cli v0.0.4-0.20250116003948-fbf66c930cce
 	github.com/streamingfast/dhttp v0.0.2-0.20250717224215-966e6d2b148a
@@ -153,6 +152,7 @@ require (
 	github.com/spf13/cast v1.5.1 // indirect
 	github.com/spf13/pflag v1.0.5 // indirect
 	github.com/spf13/viper v1.17.0 // indirect
+	github.com/stellar/go-xdr v0.0.0-20231122183749-b53fb00bcac2 // indirect
 	github.com/streamingfast/dauth v0.0.0-20240222213226-519afc16cf84 // indirect
 	github.com/streamingfast/dbin v0.9.1-0.20231117225723-59790c798e2c // indirect
 	github.com/streamingfast/derr v0.0.0-20230515163924-8570aaa43fe1 // indirect

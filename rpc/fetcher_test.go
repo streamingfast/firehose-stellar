@@ -42,7 +42,7 @@ func Test_FetchSpecificLedger(t *testing.T) {
 }
 
 func Test_FetchSpecificLedger_ProtocolUpgrade23(t *testing.T) {
-	//t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
+	t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
 
 	const BLOCK_TO_FETCH = uint64(2032742)
 
