@@ -3,6 +3,7 @@ package rpc
 import (
 	"context"
 	"encoding/base64"
+	"encoding/hex"
 	"fmt"
 	"strconv"
 	"time"
@@ -109,7 +110,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	transactionMetas := make([]*types.TransactionMeta, 0)
 	for _, trx := range transactions {
-		txHashBytes, err := base64.StdEncoding.DecodeString(trx.TxHash)
+		txHashBytes, err := hex.DecodeString(trx.TxHash)
 		if err != nil {
 			return nil, false, fmt.Errorf("decoding transaction hash: %w", err)
 		}
@@ -120,10 +121,6 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		txResultBytes, err := base64.StdEncoding.DecodeString(trx.ResultXdr)
 		if err != nil {
 			return nil, false, fmt.Errorf("decoding transaction result: %w", err)
-		}
-		txResultMetaBytes, err := base64.StdEncoding.DecodeString(trx.ResultMetaXdr)
-		if err != nil {
-			return nil, false, fmt.Errorf("decoding transaction result meta: %w", err)
 		}
 
 		events := &pbstellar.Events{}
@@ -170,7 +167,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		}
 
 		transactionMetas = append(transactionMetas,
-			types.NewTransactionMeta(txHashBytes, trx.Status, txEnvelopeBytes, txResultBytes, txResultMetaBytes, events),
+			types.NewTransactionMeta(txHashBytes, trx.Status, txEnvelopeBytes, txResultBytes, events),
 		)
 	}
 
@@ -183,7 +180,6 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 			ApplicationOrder: uint64(i + 1),
 			EnvelopeXdr:      trx.EnveloppeXdr,
 			ResultXdr:        trx.ResultXdr,
-			ResultMetaXdr:    trx.ResultMetaXdr,
 			Events:           trx.Events,
 		})
 		if trx.Events != nil {
@@ -278,15 +274,7 @@ func (f *Fetcher) convertLedgerTransactionToTypes(tx ingest.LedgerTransaction) (
 	}
 	resultXdrStr := base64.StdEncoding.EncodeToString(resultXdr)
 
-	// Get transaction result meta
-	resultMetaXdr, err := tx.UnsafeMeta.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result meta: %w", err)
-	}
-	resultMetaXdrStr := base64.StdEncoding.EncodeToString(resultMetaXdr)
-
-	// Get transaction hash (as base64 string to match RPC format)
-	txHash := base64.StdEncoding.EncodeToString(tx.Hash[:])
+	txHash := tx.Result.TransactionHash.HexString()
 
 	// Determine status
 	status := "UNKNOWN"
@@ -304,12 +292,11 @@ func (f *Fetcher) convertLedgerTransactionToTypes(tx ingest.LedgerTransaction) (
 	}
 
 	return &types.Transaction{
-		TxHash:        txHash,
-		EnvelopeXdr:   envelopeXdrStr,
-		ResultXdr:     resultXdrStr,
-		ResultMetaXdr: resultMetaXdrStr,
-		Status:        status,
-		Events:        events,
+		TxHash:      txHash,
+		EnvelopeXdr: envelopeXdrStr,
+		ResultXdr:   resultXdrStr,
+		Status:      status,
+		Events:      events,
 	}, nil
 }
 
@@ -346,23 +333,23 @@ func (f *Fetcher) convertLedgerTransactionEventsToRPCEvents(tx ingest.LedgerTran
 		rpcEvents.TransactionEventsXdr = append(rpcEvents.TransactionEventsXdr, base64.StdEncoding.EncodeToString(eventXdr))
 	}
 
-	// Get contract events grouped by operation using tx.GetTransactionEvents().OperationEvents
-	contractEvents, err := tx.GetContractEvents()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get transaction events for contracts: %w", err)
-	}
-	// Contract events are already grouped by operation in OperationEvents
-	for _, operationEvents := range contractEvents {
-		operationEventStrings := make([]string, 0, len(contractEvents))
-		eventXdr, err := operationEvents.MarshalBinary()
-		if err != nil {
+	// Get contract events grouped by operation using transactionEvents.OperationEvents
+	for _, operationEvents := range transactionEvents.OperationEvents {
+		operationEventStrings := make([]string, 0, len(operationEvents))
+		if operationEvents == nil {
 			continue
 		}
-		operationEventStrings = append(operationEventStrings, base64.StdEncoding.EncodeToString(eventXdr))
-
-		if len(operationEventStrings) > 0 {
-			rpcEvents.ContractEventsXdr = append(rpcEvents.ContractEventsXdr, operationEventStrings)
+		for _, event := range operationEvents {
+			eventXdr, err := event.MarshalBinary()
+			if err != nil {
+				continue
+			}
+			operationEventStrings = append(operationEventStrings, base64.StdEncoding.EncodeToString(eventXdr))
 		}
+
+		//if len(operationEventStrings) > 0 {
+		rpcEvents.ContractEventsXdr = append(rpcEvents.ContractEventsXdr, operationEventStrings)
+		//}
 	}
 
 	return rpcEvents, nil

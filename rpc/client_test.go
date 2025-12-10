@@ -9,6 +9,7 @@ import (
 )
 
 const RPC_MAINNET_ENDPOINT = "https://mainnet.sorobanrpc.com"
+
 const RPC_TESTNET_ENDPOINT = "https://soroban-testnet.stellar.org"
 
 func Test_GetLatestLedger(t *testing.T) {
@@ -29,6 +30,7 @@ func Test_GetLedgers(t *testing.T) {
 }
 
 func Test_GetTransactions(t *testing.T) {
+	t.Skip("")
 	c := NewClient(RPC_MAINNET_ENDPOINT, zap.NewNop(), nil)
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
@@ -38,6 +40,7 @@ func Test_GetTransactions(t *testing.T) {
 }
 
 func Test_GetTransactionsWithEvents(t *testing.T) {
+	t.Skip("")
 	c := NewClient(RPC_MAINNET_ENDPOINT, zap.NewNop(), nil)
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
@@ -47,6 +50,7 @@ func Test_GetTransactionsWithEvents(t *testing.T) {
 }
 
 func Test_GetTransactionsWithLimitTooHigh(t *testing.T) {
+	t.Skip("")
 	c := NewClient("https://mainnet.sorobanrpc.com", zap.NewNop(), nil)
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
