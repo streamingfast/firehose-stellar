@@ -259,6 +259,37 @@ func compareBlocks(rpcBlock, gsBlock *pbbstream.Block, detailedDiff bool, rpcEnd
 		return differences
 	}
 
+	// Compare block version
+	if rcpStellarBlock.Version != gsStellarBlock.Version {
+		differences = append(differences, fmt.Sprintf("Block versions differ: %d vs %d", rcpStellarBlock.Version, gsStellarBlock.Version))
+	}
+
+	// Compare block hash (raw bytes)
+	if !bytes.Equal(rcpStellarBlock.Hash, gsStellarBlock.Hash) {
+		differences = append(differences, fmt.Sprintf("Block hashes differ: %x vs %x", rcpStellarBlock.Hash, gsStellarBlock.Hash))
+	}
+
+	// Compare header fields
+	if rcpStellarBlock.Header.LedgerVersion != gsStellarBlock.Header.LedgerVersion {
+		differences = append(differences, fmt.Sprintf("Header ledger versions differ: %d vs %d", rcpStellarBlock.Header.LedgerVersion, gsStellarBlock.Header.LedgerVersion))
+	}
+
+	if !bytes.Equal(rcpStellarBlock.Header.PreviousLedgerHash, gsStellarBlock.Header.PreviousLedgerHash) {
+		differences = append(differences, fmt.Sprintf("Header previous ledger hashes differ: %x vs %x", rcpStellarBlock.Header.PreviousLedgerHash, gsStellarBlock.Header.PreviousLedgerHash))
+	}
+
+	if rcpStellarBlock.Header.TotalCoins != gsStellarBlock.Header.TotalCoins {
+		differences = append(differences, fmt.Sprintf("Header total coins differ: %d vs %d", rcpStellarBlock.Header.TotalCoins, gsStellarBlock.Header.TotalCoins))
+	}
+
+	if rcpStellarBlock.Header.BaseFee != gsStellarBlock.Header.BaseFee {
+		differences = append(differences, fmt.Sprintf("Header base fees differ: %d vs %d", rcpStellarBlock.Header.BaseFee, gsStellarBlock.Header.BaseFee))
+	}
+
+	if rcpStellarBlock.Header.BaseReserve != gsStellarBlock.Header.BaseReserve {
+		differences = append(differences, fmt.Sprintf("Header base reserves differ: %d vs %d", rcpStellarBlock.Header.BaseReserve, gsStellarBlock.Header.BaseReserve))
+	}
+
 	// Compare transaction counts
 	if len(rcpStellarBlock.Transactions) != len(gsStellarBlock.Transactions) {
 		differences = append(differences, fmt.Sprintf("Transaction counts differ: %d vs %d", len(rcpStellarBlock.Transactions), len(gsStellarBlock.Transactions)))
@@ -324,6 +355,10 @@ func compareTransactions(rpcTx, gsTx *pbstellar.Transaction, index int, txHash s
 		differences = append(differences, fmt.Sprintf("Transaction %s (index %d): ApplicationOrder differs - RPC: %d vs GS: %d", txHash, index, rpcTx.ApplicationOrder, gsTx.ApplicationOrder))
 	}
 
+	if !proto.Equal(rpcTx.CreatedAt, gsTx.CreatedAt) {
+		differences = append(differences, fmt.Sprintf("Transaction %s (index %d): CreatedAt differs - RPC: %v vs GS: %v", txHash, index, rpcTx.CreatedAt, gsTx.CreatedAt))
+	}
+
 	// Compare envelope XDR
 	if !bytes.Equal(rpcTx.EnvelopeXdr, gsTx.EnvelopeXdr) {
 		differences = append(differences, fmt.Sprintf("Transaction %s (index %d): EnvelopeXdr differs - RPC and GS have different envelope data", txHash, index))
@@ -362,11 +397,13 @@ func compareTransactions(rpcTx, gsTx *pbstellar.Transaction, index int, txHash s
 			}
 		}
 
-		// Compare contract events
+		//clean up the mess
+		var gsContractEvents []*pbstellar.ContractEvent
 		gsContractEventCount := 0
 		for _, event := range gsTx.Events.ContractEventsXdr {
 			if len(event.Events) > 0 {
 				gsContractEventCount++
+				gsContractEvents = append(gsContractEvents, event)
 			}
 		}
 
@@ -382,7 +419,7 @@ func compareTransactions(rpcTx, gsTx *pbstellar.Transaction, index int, txHash s
 		} else {
 			for i := 0; i < len(rpcTx.Events.ContractEventsXdr); i++ {
 				ce1 := rpcTx.Events.ContractEventsXdr[i]
-				ce2 := gsTx.Events.ContractEventsXdr[i]
+				ce2 := gsContractEvents[i]
 				if len(ce1.Events) != len(ce2.Events) {
 					differences = append(differences, fmt.Sprintf("Transaction %s (index %d): ContractEvent %d events count differs - RPC: %d vs GS: %d", txHash, index, i, len(ce1.Events), len(ce2.Events)))
 				} else {

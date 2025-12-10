@@ -9,7 +9,9 @@ import (
 )
 
 const RPC_MAINNET_ENDPOINT = "https://mainnet.sorobanrpc.com"
-const RPC_TESTNET_ENDPOINT = "https://soroban-testnet.stellar.org"
+
+// const RPC_TESTNET_ENDPOINT = "https://soroban-rpc.testnet.stellar.gateway.fm"
+const RPC_TESTNET_ENDPOINT = "https://blue-stylish-spree.stellar-testnet.quiknode.pro/a631f833abb51e32c79012ac81783d1faf18734a/"
 
 func Test_GetLatestLedger(t *testing.T) {
 	c := NewClient(RPC_MAINNET_ENDPOINT, zap.NewNop(), nil)
