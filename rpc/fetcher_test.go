@@ -15,7 +15,7 @@ func Test_Fetch(t *testing.T) {
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
 
-	f := NewFetcher(time.Second, time.Second, 200, testLog)
+	f := NewFetcher(time.Second, time.Second, 200, true, testLog)
 	b, _, err := f.Fetch(context.Background(), c, uint64(ledger.Sequence))
 
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func Test_FetchSpecificLedger(t *testing.T) {
 	const BLOCK_TO_FETCH = uint64(60132634)
 
 	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
-	f := NewFetcher(time.Second, time.Second, 200, testLog)
+	f := NewFetcher(time.Second, time.Second, 200, true, testLog)
 	b, _, err := f.Fetch(context.Background(), c, BLOCK_TO_FETCH)
 	require.NoError(t, err)
 
@@ -41,13 +41,13 @@ func Test_FetchSpecificLedger(t *testing.T) {
 	require.Equal(t, 252, len(stellarBlock.Transactions))
 }
 
-func Test_FetchSpecificLedger_ProtocolUpgrade23(t *testing.T) {
+func Test_FetchSpecificLedger_Testnet(t *testing.T) {
 	t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
 
 	const BLOCK_TO_FETCH = uint64(2032742)
 
 	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
-	f := NewFetcher(time.Second, time.Second, 200, testLog)
+	f := NewFetcher(time.Second, time.Second, 200, false, testLog)
 	b, _, err := f.Fetch(context.Background(), c, BLOCK_TO_FETCH)
 	require.NoError(t, err)
 
@@ -57,26 +57,5 @@ func Test_FetchSpecificLedger_ProtocolUpgrade23(t *testing.T) {
 	require.NotNil(t, b)
 	require.Equal(t, BLOCK_TO_FETCH, b.Number)
 
-	require.Equal(t, uint32(23), stellarBlock.Header.LedgerVersion)
-	require.Equal(t, 8, len(stellarBlock.Transactions))
-}
-
-func Test_FetchSpecificLedger_ProtocolUpgrade23_MetadataV2(t *testing.T) {
-	t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
-
-	const BLOCK_TO_FETCH = uint64(500202)
-
-	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
-	f := NewFetcher(time.Second, time.Second, 200, testLog)
-	b, _, err := f.Fetch(context.Background(), c, BLOCK_TO_FETCH)
-	require.NoError(t, err)
-
-	stellarBlock := &pbstellar.Block{}
-	require.NoError(t, b.Payload.UnmarshalTo(stellarBlock))
-
-	require.NotNil(t, b)
-	require.Equal(t, BLOCK_TO_FETCH, b.Number)
-
-	require.Equal(t, uint32(23), stellarBlock.Header.LedgerVersion)
-	require.Equal(t, 3, len(stellarBlock.Transactions))
+	require.Equal(t, 2, len(stellarBlock.Transactions))
 }

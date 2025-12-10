@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/stellar/go-stellar-sdk/ingest"
+	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/xdr"
 	pbbstream "github.com/streamingfast/bstream/pb/sf/bstream/v1"
 	"github.com/streamingfast/firehose-stellar/decoder"
@@ -36,10 +37,11 @@ type Fetcher struct {
 	decoder                  *decoder.Decoder
 	transactionFetchLimit    int
 
-	logger *zap.Logger
+	logger    *zap.Logger
+	isMainnet bool
 }
 
-func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transactionFetchLimit int, logger *zap.Logger) *Fetcher {
+func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transactionFetchLimit int, isMainnet bool, logger *zap.Logger) *Fetcher {
 	return &Fetcher{
 		fetchInterval:            fetchInterval,
 		latestBlockRetryInterval: latestBlockRetryInterval,
@@ -47,6 +49,7 @@ func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transacti
 		decoder:                  decoder.NewDecoder(logger),
 		transactionFetchLimit:    transactionFetchLimit,
 		logger:                   logger,
+		isMainnet:                isMainnet,
 	}
 }
 
@@ -229,7 +232,11 @@ func (f *Fetcher) extractTransactionsFromLedgerMetadata(ledgerMetadata *xdr.Ledg
 	// Use the Stellar SDK's LedgerTransactionReader to extract transactions from ledger metadata
 	// This is the proper way to access transaction data from LedgerCloseMeta
 
-	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta("Public Global Stellar Network ; September 2015", *ledgerMetadata)
+	passphrase := network.PublicNetworkPassphrase
+	if !f.isMainnet {
+		passphrase = network.TestNetworkPassphrase
+	}
+	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(passphrase, *ledgerMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ledger transaction reader: %w", err)
 	}

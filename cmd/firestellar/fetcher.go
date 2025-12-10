@@ -30,7 +30,7 @@ func NewFetchCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 	cmd.Flags().Duration("max-block-fetch-duration", 3*time.Second, "maximum delay before considering a block fetch as failed")
 	cmd.Flags().Int("block-fetch-batch-size", 1, "Number of blocks to fetch in a single batch")
 	cmd.Flags().Int("transaction-fetch-limit", 200, "Maximum number of transactions to fetch at the same time")
-
+	cmd.Flags().Bool("is-mainnet", true, "This is for passphrase selection")
 	return cmd
 }
 
@@ -46,6 +46,7 @@ func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecut
 		fetchInterval := sflags.MustGetDuration(cmd, "interval-between-fetch")
 		latestBlockRetryInterval := sflags.MustGetDuration(cmd, "latest-block-retry-interval")
 		maxBlockFetchDuration := sflags.MustGetDuration(cmd, "max-block-fetch-duration")
+		isMainnet := sflags.MustGetBool(cmd, "is-mainnet")
 
 		logger.Info(
 			"launching firehose-stellar poller",
@@ -67,7 +68,7 @@ func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecut
 		transactionFetchLimit := sflags.MustGetInt(cmd, "transaction-fetch-limit")
 
 		poller := blockpoller.New(
-			rpc.NewFetcher(fetchInterval, latestBlockRetryInterval, transactionFetchLimit, logger),
+			rpc.NewFetcher(fetchInterval, latestBlockRetryInterval, transactionFetchLimit, isMainnet, logger),
 			blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block"),
 			rpcClients,
 			blockpoller.WithStoringState[*rpc.Client](stateDir),

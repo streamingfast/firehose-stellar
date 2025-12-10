@@ -119,7 +119,7 @@ func fetchBlockViaFetcher(ctx context.Context, blockNum uint64, rpcEndpoint, net
 	client := rpc.NewClient(rpcEndpoint, logger, nil)
 
 	// Create a Fetcher instance
-	fetcher := rpc.NewFetcher(0, time.Second, 200, logger)
+	fetcher := rpc.NewFetcher(0, time.Second, 200, true, logger)
 
 	// Fetch the block
 	block, skipped, err := fetcher.Fetch(ctx, client, blockNum)
