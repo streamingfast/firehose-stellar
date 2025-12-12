@@ -97,6 +97,8 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	var ledgerHeader xdr.LedgerHeaderHistoryEntry
 	switch {
+	case ledgerMetadata.V0 != nil:
+		ledgerHeader = ledgerMetadata.V0.LedgerHeader
 	case ledgerMetadata.V2 != nil:
 		ledgerHeader = ledgerMetadata.V2.LedgerHeader
 	case ledgerMetadata.V1 != nil:
