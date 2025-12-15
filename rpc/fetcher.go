@@ -43,6 +43,9 @@ type Fetcher struct {
 	// Statistics
 	acquisitionTimes      []time.Duration
 	conversionTimes       []time.Duration
+	totalTimes            []time.Duration
+	interCallDelays       []time.Duration
+	lastFetchStart        time.Time
 	blocksFetchedInPeriod int
 	statsTicker           *time.Ticker
 }
@@ -58,6 +61,7 @@ func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transacti
 		isMainnet:                isMainnet,
 		acquisitionTimes:         make([]time.Duration, 0, 50),
 		conversionTimes:          make([]time.Duration, 0, 50),
+		totalTimes:               make([]time.Duration, 0, 50),
 		blocksFetchedInPeriod:    0,
 		statsTicker:              time.NewTicker(10 * time.Second),
 	}
@@ -69,6 +73,12 @@ func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transacti
 }
 
 func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uint64) (b *pbbstream.Block, skipped bool, err error) {
+	fetchStart := time.Now()
+	var interCallDelay time.Duration
+	if !f.lastFetchStart.IsZero() {
+		interCallDelay = fetchStart.Sub(f.lastFetchStart)
+	}
+	f.lastFetchStart = fetchStart
 	sleepDuration := time.Duration(0)
 	for f.lastBlockInfo.blockNum < requestBlockNum {
 		time.Sleep(sleepDuration)
@@ -247,7 +257,8 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 
 	// Update statistics
 	conversionTime := time.Since(acquisitionEnd)
-	f.updateStatistics(acquisitionTime, conversionTime)
+	totalTime := time.Since(fetchStart)
+	f.updateStatistics(acquisitionTime, conversionTime, totalTime, interCallDelay)
 
 	return bstreamBlock, false, nil
 }
@@ -258,12 +269,14 @@ func (f *Fetcher) logStatistics() {
 			zap.Int("blocks_fetched_in_period", f.blocksFetchedInPeriod),
 			zap.Duration("avg_acquisition_time", f.averageDuration(f.acquisitionTimes)),
 			zap.Duration("avg_conversion_time", f.averageDuration(f.conversionTimes)),
+			zap.Duration("avg_total_time", f.averageDuration(f.totalTimes)),
+			zap.Duration("avg_inter_call_delay", f.averageDuration(f.interCallDelays)),
 		)
 		f.blocksFetchedInPeriod = 0
 	}
 }
 
-func (f *Fetcher) updateStatistics(acquisitionTime, conversionTime time.Duration) {
+func (f *Fetcher) updateStatistics(acquisitionTime, conversionTime, totalTime, interCallDelay time.Duration) {
 	f.acquisitionTimes = append(f.acquisitionTimes, acquisitionTime)
 	if len(f.acquisitionTimes) > 50 {
 		f.acquisitionTimes = f.acquisitionTimes[1:]
@@ -271,6 +284,16 @@ func (f *Fetcher) updateStatistics(acquisitionTime, conversionTime time.Duration
 	f.conversionTimes = append(f.conversionTimes, conversionTime)
 	if len(f.conversionTimes) > 50 {
 		f.conversionTimes = f.conversionTimes[1:]
+	}
+	f.totalTimes = append(f.totalTimes, totalTime)
+	if len(f.totalTimes) > 50 {
+		f.totalTimes = f.totalTimes[1:]
+	}
+	if interCallDelay > 0 {
+		f.interCallDelays = append(f.interCallDelays, interCallDelay)
+		if len(f.interCallDelays) > 50 {
+			f.interCallDelays = f.interCallDelays[1:]
+		}
 	}
 	f.blocksFetchedInPeriod++
 }
