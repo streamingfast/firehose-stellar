@@ -39,10 +39,16 @@ type Fetcher struct {
 
 	logger    *zap.Logger
 	isMainnet bool
+
+	// Statistics
+	acquisitionTimes      []time.Duration
+	conversionTimes       []time.Duration
+	blocksFetchedInPeriod int
+	statsTicker           *time.Ticker
 }
 
 func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transactionFetchLimit int, isMainnet bool, logger *zap.Logger) *Fetcher {
-	return &Fetcher{
+	f := &Fetcher{
 		fetchInterval:            fetchInterval,
 		latestBlockRetryInterval: latestBlockRetryInterval,
 		lastBlockInfo:            NewLastBlockInfo(),
@@ -50,7 +56,16 @@ func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transacti
 		transactionFetchLimit:    transactionFetchLimit,
 		logger:                   logger,
 		isMainnet:                isMainnet,
+		acquisitionTimes:         make([]time.Duration, 0, 50),
+		conversionTimes:          make([]time.Duration, 0, 50),
+		blocksFetchedInPeriod:    0,
+		statsTicker:              time.NewTicker(10 * time.Second),
 	}
+
+	// Start statistics logging goroutine
+	go f.logStatistics()
+
+	return f
 }
 
 func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uint64) (b *pbbstream.Block, skipped bool, err error) {
@@ -72,10 +87,13 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		sleepDuration = f.latestBlockRetryInterval
 	}
 
+	ledgerStart := time.Now()
 	ledger, err := client.GetLedgers(ctx, requestBlockNum)
 	if err != nil {
 		return nil, false, fmt.Errorf("fetching ledger: %w", err)
 	}
+	acquisitionEnd := time.Now()
+	acquisitionTime := acquisitionEnd.Sub(ledgerStart)
 
 	if len(ledger) == 0 {
 		return nil, false, fmt.Errorf("ledger not found %d", requestBlockNum)
@@ -227,7 +245,45 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 	// reset the cursor
 	f.lastBlockInfo.cursor = ""
 
+	// Update statistics
+	conversionTime := time.Since(acquisitionEnd)
+	f.updateStatistics(acquisitionTime, conversionTime)
+
 	return bstreamBlock, false, nil
+}
+
+func (f *Fetcher) logStatistics() {
+	for range f.statsTicker.C {
+		f.logger.Info("block fetch statistics",
+			zap.Int("blocks_fetched_in_period", f.blocksFetchedInPeriod),
+			zap.Duration("avg_acquisition_time", f.averageDuration(f.acquisitionTimes)),
+			zap.Duration("avg_conversion_time", f.averageDuration(f.conversionTimes)),
+		)
+		f.blocksFetchedInPeriod = 0
+	}
+}
+
+func (f *Fetcher) updateStatistics(acquisitionTime, conversionTime time.Duration) {
+	f.acquisitionTimes = append(f.acquisitionTimes, acquisitionTime)
+	if len(f.acquisitionTimes) > 50 {
+		f.acquisitionTimes = f.acquisitionTimes[1:]
+	}
+	f.conversionTimes = append(f.conversionTimes, conversionTime)
+	if len(f.conversionTimes) > 50 {
+		f.conversionTimes = f.conversionTimes[1:]
+	}
+	f.blocksFetchedInPeriod++
+}
+
+func (f *Fetcher) averageDuration(durations []time.Duration) time.Duration {
+	if len(durations) == 0 {
+		return 0
+	}
+	var sum time.Duration
+	for _, d := range durations {
+		sum += d
+	}
+	return sum / time.Duration(len(durations))
 }
 
 func (f *Fetcher) extractTransactionsFromLedgerMetadata(ledgerMetadata *xdr.LedgerCloseMeta) ([]types.Transaction, error) {
