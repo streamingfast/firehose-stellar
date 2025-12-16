@@ -597,8 +597,8 @@ github.com/streamingfast/dstore v0.1.1-0.20251105221635-c60b9e8af972 h1:Wfu9Q6da
 github.com/streamingfast/dstore v0.1.1-0.20251105221635-c60b9e8af972/go.mod h1:FKF6+noY/Qgf+1EgeyQdQllQpmCvKQ6bghSbqRYJhlw=
 github.com/streamingfast/dtracing v0.0.0-20220305214756-b5c0e8699839 h1:K6mJPvh1jAL+/gBS7Bh9jyzWaTib6N47m06gZOTUPwQ=
 github.com/streamingfast/dtracing v0.0.0-20220305214756-b5c0e8699839/go.mod h1:huOJyjMYS6K8upTuxDxaNd+emD65RrXoVBvh8f1/7Ns=
-github.com/streamingfast/firehose-core v1.12.4-0.20251215160923-67b9f3224ece h1:H3hd2bRMKN2vZQjviF5q0u9idispKwzgMwT3vG/G0sY=
-github.com/streamingfast/firehose-core v1.12.4-0.20251215160923-67b9f3224ece/go.mod h1:Zxvt1RCc4CJkAx7pWwUPtWfuwO8wJB0zptiLdFGCzvM=
+github.com/streamingfast/firehose-core v1.12.4-0.20251216150743-a0ea01923554 h1:lLCQsiTOZncFu4vDsE6cY4fgaxgWt3x+KZMj5Nnlxzk=
+github.com/streamingfast/firehose-core v1.12.4-0.20251216150743-a0ea01923554/go.mod h1:Zxvt1RCc4CJkAx7pWwUPtWfuwO8wJB0zptiLdFGCzvM=
 github.com/streamingfast/firehose-networks v0.2.2 h1:araNCSHVa9C8+7hGrxNJYt8TlbK65kNDxQMBJuzBjxA=
 github.com/streamingfast/firehose-networks v0.2.2/go.mod h1:/XyroRcAUOO9DdxdgHktuVI1U6uKgjj6+1r+zgLEb90=
 github.com/streamingfast/logging v0.0.0-20210811175431-f3b44b61606a/go.mod h1:4GdqELhZOXj4xwc4IaBmzofzdErGynnaSzuzxy0ZIBo=

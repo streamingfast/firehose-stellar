@@ -14,7 +14,7 @@ require (
 	github.com/streamingfast/cli v0.0.4-0.20250815192146-d8a233ec3d0b
 	github.com/streamingfast/dhttp v0.1.2
 	github.com/streamingfast/dstore v0.1.1-0.20251105221635-c60b9e8af972
-	github.com/streamingfast/firehose-core v1.12.4-0.20251215160923-67b9f3224ece
+	github.com/streamingfast/firehose-core v1.12.4-0.20251216150743-a0ea01923554
 	github.com/streamingfast/logging v0.0.0-20230608130331-f22c91403091
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/zap v1.27.0
