@@ -89,7 +89,7 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		}
 
 		f.lastBlockInfo.blockNum = uint64(latestLedger.Sequence)
-		f.logger.Info("got latest block num", zap.Uint64("latest_block_num", f.lastBlockInfo.blockNum), zap.Uint64("requested_block_num", requestBlockNum))
+		f.logger.Info("got latest block num", zap.Uint64("latest_block_num", f.lastBlockInfo.blockNum), zap.Uint64("requested_block_num", requestBlockNum), zap.Bool("keep", false))
 
 		if f.lastBlockInfo.blockNum >= requestBlockNum {
 			break
