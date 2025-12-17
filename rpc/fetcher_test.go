@@ -42,9 +42,9 @@ func Test_FetchSpecificLedger(t *testing.T) {
 }
 
 func Test_FetchSpecificLedger_Testnet(t *testing.T) {
-	t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
+	//t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
 
-	const BLOCK_TO_FETCH = uint64(2032742)
+	const BLOCK_TO_FETCH = uint64(128)
 
 	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
 	f := NewFetcher(time.Second, time.Second, 200, false, testLog)
