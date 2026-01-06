@@ -47,7 +47,7 @@ func (c *Client) GetLatestLedger(ctx context.Context) (*types.GetLatestLedgerRes
 
 	var response types.GetLatestLedgerResponse
 	decoder := json.NewDecoder(bytes.NewBuffer(body))
-	decoder.DisallowUnknownFields() // Fail on unknown fields
+	// decoder.DisallowUnknownFields() // On GetLatestLedger, we are only interested in the SequenceNumber
 	err = decoder.Decode(&response)
 	if err != nil {
 		return nil, fmt.Errorf("original body: %s failed to unmarshal JSON: %w", string(body), err)

@@ -36,10 +36,11 @@ type GetLatestLedgerResponse struct {
 type GetLatestLedgerResult struct {
 	ID              string `json:"id"`
 	ProtocolVersion int    `json:"protocolVersion"`
-	Sequence        int    `json:"sequence"`
-	CloseTime       string `json:"closeTime"`
-	HeaderXdr       string `json:"headerXdr"`
-	MetadataXdr     string `json:"metadataXdr"`
+	Sequence        int    `json:"sequence"` // this is the only actual field of interest for this call
+
+	// CloseTime       string `json:"closeTime"`
+	// HeaderXdr       string `json:"headerXdr"`
+	// MetadataXdr     string `json:"metadataXdr"`
 }
 
 type LedgerRequest struct {

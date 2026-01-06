@@ -44,7 +44,8 @@ func Test_FetchSpecificLedger(t *testing.T) {
 func Test_FetchSpecificLedger_Testnet(t *testing.T) {
 	//t.Skip("Testnet endpoint resets from time to time, so this test cannot last in time, adjust the block number to test it again correctly")
 
-	const BLOCK_TO_FETCH = uint64(128)
+	const BLOCK_TO_FETCH = uint64(342805)
+	const EXPECTED_TRANSACTION_COUNT = 3
 
 	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
 	f := NewFetcher(time.Second, time.Second, 200, false, testLog)
@@ -57,5 +58,5 @@ func Test_FetchSpecificLedger_Testnet(t *testing.T) {
 	require.NotNil(t, b)
 	require.Equal(t, BLOCK_TO_FETCH, b.Number)
 
-	require.Equal(t, 2, len(stellarBlock.Transactions))
+	require.Equal(t, EXPECTED_TRANSACTION_COUNT, len(stellarBlock.Transactions))
 }
