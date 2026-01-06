@@ -37,7 +37,9 @@ type GetLatestLedgerResult struct {
 	ID              string `json:"id"`
 	ProtocolVersion int    `json:"protocolVersion"`
 	Sequence        int    `json:"sequence"`
-	CloseTime       uint64 `json:"closeTime"`
+	CloseTime       string `json:"closeTime"`
+	HeaderXdr       string `json:"headerXdr"`
+	MetadataXdr     string `json:"metadataXdr"`
 }
 
 type LedgerRequest struct {
