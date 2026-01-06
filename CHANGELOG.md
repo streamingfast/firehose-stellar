@@ -12,7 +12,7 @@ for instructions to keep up to date.
 * Add "keep" flag to fetcher log for improved debugging
 * Expand fetch statistics with total times and inter-call delays
 * Add block fetch performance tracking and statistics logging
-* Update module dependencies and Go version
+* Update module dependencies and Go version (go-stellar-sdk: 20251210134752-6c46f8811c13)
 * Add V0 transaction support
 * Add `is-mainnet` flag for network passphrase selection
 * remove dependency on getTransaction only rely on getLegder.
