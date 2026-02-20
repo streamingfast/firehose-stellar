@@ -5,22 +5,21 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/require"
-	"go.uber.org/zap"
 )
 
 const RPC_MAINNET_ENDPOINT = "https://mainnet.sorobanrpc.com"
-
 const RPC_TESTNET_ENDPOINT = "https://soroban-testnet.stellar.org"
 
 func Test_GetLatestLedger(t *testing.T) {
-	c := NewClient(RPC_MAINNET_ENDPOINT, zap.NewNop(), nil)
+	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
 	require.NotZero(t, ledger)
+	require.Greater(t, ledger.Sequence, uint32(61322487))
 }
 
 func Test_GetLedgers(t *testing.T) {
-	c := NewClient(RPC_MAINNET_ENDPOINT, zap.NewNop(), nil)
+	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
 	ledgers, err := c.GetLedgers(context.Background(), uint64(ledger.Sequence))
@@ -31,7 +30,8 @@ func Test_GetLedgers(t *testing.T) {
 
 func Test_GetTransactions(t *testing.T) {
 	t.Skip("")
-	c := NewClient(RPC_MAINNET_ENDPOINT, zap.NewNop(), nil)
+
+	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
 	transactions, err := c.GetTransactions(context.Background(), uint64(ledger.Sequence), 100, "")
@@ -41,7 +41,7 @@ func Test_GetTransactions(t *testing.T) {
 
 func Test_GetTransactionsWithEvents(t *testing.T) {
 	t.Skip("")
-	c := NewClient(RPC_MAINNET_ENDPOINT, zap.NewNop(), nil)
+	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
 	transactions, err := c.GetTransactions(context.Background(), uint64(ledger.Sequence), 100, "")
@@ -51,7 +51,7 @@ func Test_GetTransactionsWithEvents(t *testing.T) {
 
 func Test_GetTransactionsWithLimitTooHigh(t *testing.T) {
 	t.Skip("")
-	c := NewClient("https://mainnet.sorobanrpc.com", zap.NewNop(), nil)
+	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
 	_, err = c.GetTransactions(context.Background(), uint64(ledger.Sequence), 2000, "")
