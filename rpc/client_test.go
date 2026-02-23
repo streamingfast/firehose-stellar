@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-const RPC_MAINNET_ENDPOINT = "https://mainnet.sorobanrpc.com"
+const RPC_MAINNET_ENDPOINT = "https://archive-rpc.lightsail.network/"
 const RPC_TESTNET_ENDPOINT = "https://soroban-testnet.stellar.org"
 
 func Test_GetLatestLedger(t *testing.T) {
@@ -15,7 +15,7 @@ func Test_GetLatestLedger(t *testing.T) {
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
 	require.NotZero(t, ledger)
-	require.Greater(t, ledger.Sequence, uint32(61322487))
+	require.Greater(t, ledger.Sequence, int(61322487))
 }
 
 func Test_GetLedgers(t *testing.T) {
