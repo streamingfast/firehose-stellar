@@ -4,6 +4,12 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [MAINTAINERS.md](./MAINTAINERS.md)
 for instructions to keep up to date.
 
+## v1.0.6 
+
+* bump SDK to match rpc V26
+
+## v1.0.5 ~failed build~
+
 ## v1.0.4
 
 * ignore extraneous fields on GetLatestLedgerResult response since we only use it for block number (sequence)
