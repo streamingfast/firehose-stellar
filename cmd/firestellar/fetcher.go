@@ -15,12 +15,12 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewFetchCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
+func NewFetchRpcCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rpc <first-streamable-block>",
 		Short: "fetch blocks from rpc endpoint",
 		Args:  cobra.ExactArgs(1),
-		RunE:  fetchRunE(logger, tracer),
+		RunE:  fetchRpcRunE(logger, tracer),
 	}
 
 	cmd.Flags().StringArray("endpoints", []string{}, "List of endpoints to use to fetch different method calls")
@@ -34,7 +34,7 @@ func NewFetchCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 	return cmd
 }
 
-func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecutor {
+func fetchRpcRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecutor {
 	return func(cmd *cobra.Command, args []string) (err error) {
 		stateDir := sflags.MustGetString(cmd, "state-dir")
 
