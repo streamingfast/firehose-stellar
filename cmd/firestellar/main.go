@@ -38,7 +38,8 @@ func main() {
 		ConfigureViper("FIRESTELLAR"),
 
 		Group("fetch", "Reader Node fetch RPC command",
-			CobraCmd(NewFetchCmd(logger, tracer)),
+			CobraCmd(NewFetchRpcCmd(logger, tracer)),
+			CobraCmd(NewFetchCaptiveCoreCmd(logger, tracer)),
 		),
 
 		CobraCmd(NewToolDecodeBlockCmd()),
