@@ -222,15 +222,14 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		}
 	}
 
-	ledgerHashBytes, err := base64.StdEncoding.DecodeString(ledger[0].Hash)
+	// stellar-rpc returns ledger.hash as a hex string; previous_ledger_hash on
+	// the LedgerHeader is already raw 32 bytes.
+	ledgerHashBytes, err := hex.DecodeString(ledger[0].Hash)
 	if err != nil {
 		return nil, false, fmt.Errorf("decoding ledger hash: %w", err)
 	}
 
-	previousLedgerHashBytes, err := base64.StdEncoding.DecodeString(ledgerHeader.Header.PreviousLedgerHash.HexString())
-	if err != nil {
-		return nil, false, fmt.Errorf("decoding previous ledger hash: %w", err)
-	}
+	previousLedgerHashBytes := ledgerHeader.Header.PreviousLedgerHash[:]
 
 	stellarBlk := &pbstellar.Block{
 		Number: ledger[0].Sequence,
@@ -453,8 +452,11 @@ func convertBlock(stellarBlk *pbstellar.Block) (*pbbstream.Block, error) {
 		return nil, fmt.Errorf("unable to create anypb: %w", err)
 	}
 
-	stellarBlockHash := base64.StdEncoding.EncodeToString(stellarBlk.Hash)
-	previousStellarBlockHash := base64.StdEncoding.EncodeToString(stellarBlk.Header.PreviousLedgerHash)
+	// Hex-encode IDs so the strings are filesystem-safe — firecore mindreader
+	// uses Block.Id in one-block filenames and treats '/' (which appears in
+	// standard base64 of 32-byte hashes) as a path separator.
+	stellarBlockHash := hex.EncodeToString(stellarBlk.Hash)
+	previousStellarBlockHash := hex.EncodeToString(stellarBlk.Header.PreviousLedgerHash)
 
 	return &pbbstream.Block{
 		Number:    stellarBlk.Number,
