@@ -6,7 +6,7 @@ firecore start reader-node merger \
   --common-auto-max-procs  \
   --common-auto-mem-limit-percent=90  \
   --common-one-block-store-url=data/oneblock  \
-  --common-first-streamable-block=487500  \
+  --common-first-streamable-block=2391485  \
   --reader-node-data-dir=data/oneblock  \
   --reader-node-working-dir=data/work  \
   --reader-node-readiness-max-latency=600s  \
@@ -15,6 +15,4 @@ firecore start reader-node merger \
   --reader-node-grpc-listen-addr=:9001  \
   --reader-node-manager-api-addr=:8080  \
   --reader-node-path=firestellar  \
-  --reader-node-arguments='fetch rpc 487500 \
-  --state-dir data  \
-  --endpoints https://soroban-testnet.stellar.org/'
+  --reader-node-arguments='fetch rpc 2391485 --state-dir data --is-mainnet=false --endpoints https://soroban-testnet.stellar.org/'

@@ -1,13 +1,14 @@
 package main
 
 import (
-	"context"
 	"encoding/base64"
 	"encoding/hex"
 	"fmt"
 	"strconv"
+	"strings"
 	"time"
 
+	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
 	"github.com/stellar/go-stellar-sdk/ingest"
 	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
@@ -36,18 +37,16 @@ func NewFetchCaptiveCoreCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Co
 		RunE:  fetchCaptiveCoreRunE(logger, tracer),
 	}
 
-	cmd.Flags().String("state-dir", "/data/poller", "interval between fetch")
 	cmd.Flags().String("stellar-core-bin", "/usr/bin/stellar-core", "path to stellar-core binary")
-	cmd.Flags().String("stellar-core-conf", "", "path to stellar-core config file")
+	cmd.Flags().String("stellar-core-conf", "", "path to stellar-core config file (empty = use bundled SDF default for the network)")
 	cmd.Flags().String("stellar-core-network", "testnet", "stellar network (mainnet or testnet)")
+	cmd.Flags().String("stellar-core-log-level", "info", "log level for stellar-core subprocess (debug, info, warn, error)")
 
 	return cmd
 }
 
 func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecutor {
 	return func(cmd *cobra.Command, args []string) (err error) {
-		//stateDir := sflags.MustGetString(cmd, "state-dir")
-
 		startBlock, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("unable to parse first streamable block %s: %w", args[0], err)
@@ -74,10 +73,25 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 
 		var captiveCoreToml *ledgerbackend.CaptiveCoreToml
 
+		// Match what soroban-rpc emits so blocks are byte-equivalent across both
+		// fetchers:
+		//   * EmitUnifiedEvents: TransactionMetaV4 (CAP-67) — populates classic-tx
+		//     transaction-events and per-operation contract-events. Without this,
+		//     stellar-core emits V3 and the SDK returns empty event arrays for
+		//     classic txs.
+		//   * EnforceSorobanDiagnosticEvents: stellar-core only emits diagnostic
+		//     events for Soroban txs when ENABLE_SOROBAN_DIAGNOSTIC_EVENTS=true.
+		//     Off by default for production perf; soroban-rpc forces it on.
+		//   * EnforceSorobanTransactionMetaExtV1: extra Soroban meta extension
+		//     soroban-rpc relies on.
+		// All three require stellar-core protocol >= 23.
 		params := ledgerbackend.CaptiveCoreTomlParams{
-			NetworkPassphrase:  networkPassphrase,
-			HistoryArchiveURLs: archiveURLs,
-			CoreBinaryPath:     stellarCoreBin,
+			NetworkPassphrase:                  networkPassphrase,
+			HistoryArchiveURLs:                 archiveURLs,
+			CoreBinaryPath:                     stellarCoreBin,
+			EmitUnifiedEvents:                  true,
+			EnforceSorobanDiagnosticEvents:     true,
+			EnforceSorobanTransactionMetaExtV1: true,
 		}
 
 		stellarCoreConf := sflags.MustGetString(cmd, "stellar-core-conf")
@@ -102,14 +116,12 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 			}
 		}
 
-		//log := logrus.New()
-		//log.Level = logrus.WarnLevel
-		//log.Formatter.(*logrus.TextFormatter).FullTimestamp = true
-		//logger := logrus.NewEntry(log).WithField("pid", os.Getpid())
-		//
-
 		captiveCoreLogger := log.DefaultLogger
-		captiveCoreLogger.SetLevel(log.DebugLevel)
+		coreLogLevel, err := parseStellarCoreLogLevel(sflags.MustGetString(cmd, "stellar-core-log-level"))
+		if err != nil {
+			return err
+		}
+		captiveCoreLogger.SetLevel(coreLogLevel)
 		config := ledgerbackend.CaptiveCoreConfig{
 			BinaryPath:         stellarCoreBin,
 			NetworkPassphrase:  networkPassphrase,
@@ -124,18 +136,15 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 		}
 
 		fetcher := &CaptiveCoreFetcher{
-			backend:                  backend,
-			fetchInterval:            0,
-			latestBlockRetryInterval: 0,
-			isMainnet:                isMainnet,
-			logger:                   logger,
-			decoder:                  decoder.NewDecoder(logger),
+			isMainnet: isMainnet,
+			logger:    logger,
+			decoder:   decoder.NewDecoder(logger),
 		}
 
 		handler := blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block")
 		handler.Init()
 
-		ctx := context.Background()
+		ctx := cmd.Context()
 		logger.Info("preparing range", zap.Uint32("start_block", uint32(startBlock)))
 		if err := backend.PrepareRange(ctx, ledgerbackend.UnboundedRange(uint32(startBlock))); err != nil {
 			return fmt.Errorf("prepare range from %d: %w", startBlock, err)
@@ -144,85 +153,37 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 
 		seq := uint32(startBlock)
 		for {
-			logger.Info("fetching block", zap.Uint32("seq", seq))
+			if ctx.Err() != nil {
+				return ctx.Err()
+			}
+
 			meta, err := backend.GetLedger(ctx, seq)
 			if err != nil {
 				return fmt.Errorf("get ledger %d: %w", seq, err)
 			}
-
-			logger.Info("block fetched", zap.Uint32("seq", seq))
 
 			blk, err := fetcher.convertLedgerCloseMetaToBstreamBlock(&meta)
 			if err != nil {
 				return fmt.Errorf("convert ledger %d: %w", seq, err)
 			}
 
+			logger.Info("processing block", zap.Uint32("seq", seq), zap.String("hash", blk.Id))
 			if err := handler.Handle(blk); err != nil {
 				return fmt.Errorf("handling block %d: %w", blk.Number, err)
 			}
 
 			seq++
 		}
-
-		// unreachable
 	}
 }
 
-// CaptiveCoreFetcher converts `LedgerCloseMeta` to `pbbstream.Block` and exposes helpers
-// It is not plugged into blockpoller, we use it manually with Captive Core.
+// CaptiveCoreFetcher converts xdr.LedgerCloseMeta into the same pbbstream.Block
+// shape that the RPC fetcher emits. It is not a blockpoller.BlockFetcher — Captive
+// Core is a streaming source, the caller drives the loop directly.
 type CaptiveCoreFetcher struct {
-	backend                  ledgerbackend.LedgerBackend
-	fetchInterval            time.Duration
-	latestBlockRetryInterval time.Duration
-	isMainnet                bool
-	logger                   *zap.Logger
-	decoder                  *decoder.Decoder
-
-	lastLatestBlockNum uint64
-}
-
-func (f *CaptiveCoreFetcher) Fetch(ctx context.Context, client ledgerbackend.LedgerBackend, requestBlockNum uint64) (b *pbbstream.Block, skipped bool, err error) {
-	requestBlockNum32 := uint32(requestBlockNum)
-
-	for {
-		latest, err := client.GetLatestLedgerSequence(ctx)
-		if err != nil {
-			return nil, false, fmt.Errorf("getting latest ledger sequence: %w", err)
-		}
-
-		if latest >= requestBlockNum32 {
-			break
-		}
-
-		f.logger.Debug("waiting for block", zap.Uint64("request_block_num", requestBlockNum), zap.Uint32("latest_block_num", latest))
-		select {
-		case <-ctx.Done():
-			return nil, false, ctx.Err()
-		case <-time.After(f.latestBlockRetryInterval):
-		}
-	}
-
-	ledgerMetadata, err := client.GetLedger(ctx, requestBlockNum32)
-	if err != nil {
-		return nil, false, fmt.Errorf("getting ledger %d: %w", requestBlockNum, err)
-	}
-
-	bstreamBlock, err := f.convertLedgerCloseMetaToBstreamBlock(&ledgerMetadata)
-	if err != nil {
-		return nil, false, fmt.Errorf("converting ledger %d: %w", requestBlockNum, err)
-	}
-
-	if f.fetchInterval > 0 {
-		time.Sleep(f.fetchInterval)
-	}
-
-	return bstreamBlock, false, nil
-}
-
-func (f *CaptiveCoreFetcher) IsBlockAvailable(blockNum uint64) bool {
-	// For captive core, we usually just try to fetch it.
-	// But we can check against last seen latest.
-	return blockNum <= f.lastLatestBlockNum
+	isMainnet bool
+	logger    *zap.Logger
+	decoder   *decoder.Decoder
 }
 
 func (f *CaptiveCoreFetcher) convertLedgerCloseMetaToBstreamBlock(ledgerMetadata *xdr.LedgerCloseMeta) (*pbbstream.Block, error) {
@@ -478,8 +439,13 @@ func (f *CaptiveCoreFetcher) convertStellarBlockToBstreamBlock(stellarBlk *pbste
 		return nil, fmt.Errorf("unable to create anypb: %w", err)
 	}
 
-	stellarBlockHash := base64.StdEncoding.EncodeToString(stellarBlk.Hash)
-	previousStellarBlockHash := base64.StdEncoding.EncodeToString(stellarBlk.Header.PreviousLedgerHash)
+	// Hex-encode Block.Id / ParentId so the strings are safe for one-block-file
+	// naming (firecore mindreader splits on '/' as a path separator). Standard
+	// base64 of the 32-byte ledger hash frequently contains '/', which corrupts
+	// filenames. The underlying Hash bytes in pbstellar.Block.Hash remain raw
+	// XDR bytes; only the bstream string ID changes.
+	stellarBlockHash := hex.EncodeToString(stellarBlk.Hash)
+	previousStellarBlockHash := hex.EncodeToString(stellarBlk.Header.PreviousLedgerHash)
 
 	return &pbbstream.Block{
 		Number:    stellarBlk.Number,
@@ -490,4 +456,19 @@ func (f *CaptiveCoreFetcher) convertStellarBlockToBstreamBlock(stellarBlk *pbste
 		ParentNum: stellarBlk.Number - 1,
 		Payload:   anyBlock,
 	}, nil
+}
+
+func parseStellarCoreLogLevel(s string) (logrus.Level, error) {
+	switch strings.ToLower(s) {
+	case "debug":
+		return logrus.DebugLevel, nil
+	case "info":
+		return logrus.InfoLevel, nil
+	case "warn", "warning":
+		return logrus.WarnLevel, nil
+	case "error":
+		return logrus.ErrorLevel, nil
+	default:
+		return 0, fmt.Errorf("invalid stellar-core log level %q (want debug|info|warn|error)", s)
+	}
 }
