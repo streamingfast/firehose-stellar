@@ -38,8 +38,10 @@ func NewFetchCaptiveCoreCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Co
 	}
 
 	cmd.Flags().String("stellar-core-bin", "/usr/bin/stellar-core", "path to stellar-core binary")
-	cmd.Flags().String("stellar-core-conf", "", "path to stellar-core config file (empty = use bundled SDF default for the network)")
-	cmd.Flags().String("stellar-core-network", "testnet", "stellar network (mainnet or testnet)")
+	cmd.Flags().String("stellar-core-conf", "", "path to stellar-core config file (empty = use bundled SDF default for the network; required for custom)")
+	cmd.Flags().String("stellar-core-network", "testnet", "stellar network (mainnet, testnet, or custom)")
+	cmd.Flags().String("stellar-core-network-passphrase", "", "override network passphrase (required for custom; overrides the value derived from --stellar-core-network when set)")
+	cmd.Flags().StringSlice("stellar-core-history-archive-urls", nil, "override history archive URLs (required for custom; overrides the values derived from --stellar-core-network when set)")
 	cmd.Flags().String("stellar-core-log-level", "info", "log level for stellar-core subprocess (debug, info, warn, error)")
 
 	return cmd
@@ -54,21 +56,40 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 
 		stellarCoreBin := sflags.MustGetString(cmd, "stellar-core-bin")
 		stellarCoreNetwork := sflags.MustGetString(cmd, "stellar-core-network")
+		networkPassphraseOverride := sflags.MustGetString(cmd, "stellar-core-network-passphrase")
+		archiveURLsOverride := sflags.MustGetStringSlice(cmd, "stellar-core-history-archive-urls")
 
 		var archiveURLs []string
 		var networkPassphrase string
-		isMainnet := false
+		var defaultTomlData []byte
 
 		switch stellarCoreNetwork {
 		case "mainnet":
 			archiveURLs = network.PublicNetworkhistoryArchiveURLs
 			networkPassphrase = network.PublicNetworkPassphrase
-			isMainnet = true
+			defaultTomlData = ledgerbackend.PubnetDefaultConfig
 		case "testnet":
 			archiveURLs = network.TestNetworkhistoryArchiveURLs
 			networkPassphrase = network.TestNetworkPassphrase
+			defaultTomlData = ledgerbackend.TestnetDefaultConfig
+		case "custom":
+			// passphrase + archive URLs must come from override flags
 		default:
-			return fmt.Errorf("unsupported stellar network: %s", stellarCoreNetwork)
+			return fmt.Errorf("unsupported stellar network: %s (want mainnet|testnet|custom)", stellarCoreNetwork)
+		}
+
+		if networkPassphraseOverride != "" {
+			networkPassphrase = networkPassphraseOverride
+		}
+		if len(archiveURLsOverride) > 0 {
+			archiveURLs = archiveURLsOverride
+		}
+
+		if networkPassphrase == "" {
+			return fmt.Errorf("--stellar-core-network-passphrase is required for custom network")
+		}
+		if len(archiveURLs) == 0 {
+			return fmt.Errorf("--stellar-core-history-archive-urls is required for custom network")
 		}
 
 		var captiveCoreToml *ledgerbackend.CaptiveCoreToml
@@ -102,15 +123,11 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 				return fmt.Errorf("setting up captive core toml from file %s: %w", stellarCoreConf, err)
 			}
 		} else {
-			// If no config file is provided, use the default for the network
-			var defaultData []byte
-			if isMainnet {
-				defaultData = ledgerbackend.PubnetDefaultConfig
-			} else {
-				defaultData = ledgerbackend.TestnetDefaultConfig
+			if defaultTomlData == nil {
+				return fmt.Errorf("--stellar-core-conf is required for custom network (no bundled default)")
 			}
 			var err error
-			captiveCoreToml, err = ledgerbackend.NewCaptiveCoreTomlFromData(defaultData, params)
+			captiveCoreToml, err = ledgerbackend.NewCaptiveCoreTomlFromData(defaultTomlData, params)
 			if err != nil {
 				return fmt.Errorf("setting up captive core toml from default: %w", err)
 			}
@@ -136,9 +153,9 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 		}
 
 		fetcher := &CaptiveCoreFetcher{
-			isMainnet: isMainnet,
-			logger:    logger,
-			decoder:   decoder.NewDecoder(logger),
+			networkPassphrase: networkPassphrase,
+			logger:            logger,
+			decoder:           decoder.NewDecoder(logger),
 		}
 
 		handler := blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block")
@@ -181,9 +198,9 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 // shape that the RPC fetcher emits. It is not a blockpoller.BlockFetcher — Captive
 // Core is a streaming source, the caller drives the loop directly.
 type CaptiveCoreFetcher struct {
-	isMainnet bool
-	logger    *zap.Logger
-	decoder   *decoder.Decoder
+	networkPassphrase string
+	logger            *zap.Logger
+	decoder           *decoder.Decoder
 }
 
 func (f *CaptiveCoreFetcher) convertLedgerCloseMetaToBstreamBlock(ledgerMetadata *xdr.LedgerCloseMeta) (*pbbstream.Block, error) {
@@ -316,11 +333,7 @@ func (f *CaptiveCoreFetcher) convertLedgerCloseMetaToBstreamBlock(ledgerMetadata
 }
 
 func (f *CaptiveCoreFetcher) extractTransactionsFromLedgerMetadata(ledgerMetadata *xdr.LedgerCloseMeta) ([]types.Transaction, error) {
-	passphrase := network.PublicNetworkPassphrase
-	if !f.isMainnet {
-		passphrase = network.TestNetworkPassphrase
-	}
-	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(passphrase, *ledgerMetadata)
+	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(f.networkPassphrase, *ledgerMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ledger transaction reader: %w", err)
 	}
