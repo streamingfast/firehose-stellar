@@ -4,7 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"time"
 
@@ -326,7 +328,7 @@ func (f *Fetcher) extractTransactionsFromLedgerMetadata(ledgerMetadata *xdr.Ledg
 	for {
 		tx, err := reader.Read()
 		if err != nil {
-			if err.Error() == "EOF" {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, fmt.Errorf("failed to read transaction: %w", err)

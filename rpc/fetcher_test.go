@@ -2,12 +2,49 @@ package rpc
 
 import (
 	"context"
+	"encoding/base64"
+	"encoding/hex"
+	"strings"
 	"testing"
 	"time"
 
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
 	"github.com/stretchr/testify/require"
 )
+
+func Test_convertBlock_HexEncodesIDs(t *testing.T) {
+	// Bytes chosen so standard base64 of these 32-byte hashes contains '/' —
+	// guards against any regression back to base64, which would corrupt
+	// firecore one-block filenames (path-separator collision).
+	hash := []byte{
+		0xff, 0xff, 0xff, 0xff, 0x00, 0x00, 0x00, 0x00,
+		0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+		0x99, 0xaa, 0xbb, 0xcc, 0xdd, 0xee, 0xff, 0x00,
+		0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+	}
+	prev := []byte{
+		0x00, 0xff, 0x00, 0xff, 0x00, 0xff, 0x00, 0xff,
+		0xab, 0xcd, 0xef, 0x12, 0x34, 0x56, 0x78, 0x90,
+		0xfe, 0xdc, 0xba, 0x98, 0x76, 0x54, 0x32, 0x10,
+		0x11, 0x22, 0x33, 0x44, 0x55, 0x66, 0x77, 0x88,
+	}
+	require.Contains(t, base64.StdEncoding.EncodeToString(hash), "/", "test fixture invariant: base64(hash) should contain '/' for this regression test to be meaningful")
+
+	stellarBlk := &pbstellar.Block{
+		Number: 12345,
+		Hash:   hash,
+		Header: &pbstellar.Header{PreviousLedgerHash: prev},
+	}
+
+	b, err := convertBlock(stellarBlk)
+	require.NoError(t, err)
+
+	require.Equal(t, hex.EncodeToString(hash), b.Id)
+	require.Equal(t, hex.EncodeToString(prev), b.ParentId)
+	for _, id := range []string{b.Id, b.ParentId} {
+		require.False(t, strings.ContainsAny(id, "/+="), "block id must not contain base64-only chars: %q", id)
+	}
+}
 
 func Test_Fetch(t *testing.T) {
 	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
