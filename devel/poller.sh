@@ -15,4 +15,4 @@ firecore start reader-node merger \
   --reader-node-grpc-listen-addr=:9001  \
   --reader-node-manager-api-addr=:8080  \
   --reader-node-path=firestellar  \
-  --reader-node-arguments='fetch rpc 2391485 --state-dir data --is-mainnet=false --endpoints https://soroban-testnet.stellar.org/'
+  --reader-node-arguments='fetch rpc 2391485 --state-dir data --stellar-rpc-network=testnet --endpoints https://soroban-testnet.stellar.org/'

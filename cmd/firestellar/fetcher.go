@@ -31,7 +31,7 @@ func NewFetchRpcCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 	cmd.Flags().Duration("max-block-fetch-duration", 3*time.Second, "maximum delay before considering a block fetch as failed")
 	cmd.Flags().Int("block-fetch-batch-size", 1, "Number of blocks to fetch in a single batch")
 	cmd.Flags().Int("transaction-fetch-limit", 200, "Maximum number of transactions to fetch at the same time")
-	cmd.Flags().String("stellar-rpc-network", "testnet", "stellar network the rpc endpoint serves (mainnet, testnet, or custom)")
+	cmd.Flags().String("stellar-rpc-network", "mainnet", "stellar network the rpc endpoint serves (mainnet, testnet, or custom)")
 	cmd.Flags().String("stellar-rpc-network-passphrase", "", "override network passphrase (required for custom; overrides the value derived from --stellar-rpc-network when set)")
 
 	// Deprecated: --is-mainnet was the original flag and is kept for
@@ -117,15 +117,19 @@ func resolveRPCNetworkPassphrase(cmd *cobra.Command) (string, error) {
 		return override, nil
 	}
 
+	// Back-compat: if the user explicitly set --is-mainnet and did not
+	// override --stellar-rpc-network, honor the deprecated flag.
+	if cmd.Flags().Changed("is-mainnet") && !cmd.Flags().Changed("stellar-rpc-network") {
+		if sflags.MustGetBool(cmd, "is-mainnet") {
+			return network.PublicNetworkPassphrase, nil
+		}
+		return network.TestNetworkPassphrase, nil
+	}
+
 	switch networkName {
 	case "mainnet":
 		return network.PublicNetworkPassphrase, nil
 	case "testnet":
-		// If the user only set --is-mainnet=true, honor it (back-compat).
-		// `MustGetBool` returns false when the flag isn't present.
-		if cmd.Flags().Changed("is-mainnet") && sflags.MustGetBool(cmd, "is-mainnet") {
-			return network.PublicNetworkPassphrase, nil
-		}
 		return network.TestNetworkPassphrase, nil
 	case "custom":
 		return "", fmt.Errorf("--stellar-rpc-network-passphrase is required when --stellar-rpc-network=custom")

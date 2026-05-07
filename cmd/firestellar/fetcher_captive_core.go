@@ -3,7 +3,10 @@ package main
 import (
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
+	"math"
 	"strconv"
 	"strings"
 	"time"
@@ -52,6 +55,9 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 		startBlock, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("unable to parse first streamable block %s: %w", args[0], err)
+		}
+		if startBlock > math.MaxUint32 {
+			return fmt.Errorf("first streamable block %d exceeds stellar ledger sequence range (uint32)", startBlock)
 		}
 
 		stellarCoreBin := sflags.MustGetString(cmd, "stellar-core-bin")
@@ -343,7 +349,7 @@ func (f *CaptiveCoreFetcher) extractTransactionsFromLedgerMetadata(ledgerMetadat
 	for {
 		tx, err := reader.Read()
 		if err != nil {
-			if err.Error() == "EOF" {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, fmt.Errorf("failed to read transaction: %w", err)
