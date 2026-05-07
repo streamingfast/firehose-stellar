@@ -15,7 +15,7 @@ func Test_Fetch(t *testing.T) {
 	ledger, err := c.GetLatestLedger(context.Background())
 	require.NoError(t, err)
 
-	f := NewFetcher(time.Second, time.Second, 200, c.rpcEndpoint == RPC_MAINNET_ENDPOINT, testLog)
+	f := NewFetcher(time.Second, time.Second, 200, passphraseFor(c.rpcEndpoint), testLog)
 	b, _, err := f.Fetch(context.Background(), c, uint64(ledger.Sequence))
 
 	require.NoError(t, err)
@@ -29,7 +29,7 @@ func Test_FetchSpecificLedger(t *testing.T) {
 	const BLOCK_TO_FETCH = uint64(61322487)
 
 	c := NewClient(RPC_MAINNET_ENDPOINT, testLog, testTracer)
-	f := NewFetcher(time.Second, time.Second, 200, c.rpcEndpoint == RPC_MAINNET_ENDPOINT, testLog)
+	f := NewFetcher(time.Second, time.Second, 200, passphraseFor(c.rpcEndpoint), testLog)
 	b, _, err := f.Fetch(context.Background(), c, BLOCK_TO_FETCH)
 	require.NoError(t, err)
 
@@ -48,7 +48,7 @@ func Test_FetchSpecificLedger_Testnet(t *testing.T) {
 	const EXPECTED_TRANSACTION_COUNT = 3
 
 	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
-	f := NewFetcher(time.Second, time.Second, 200, c.rpcEndpoint == RPC_MAINNET_ENDPOINT, testLog)
+	f := NewFetcher(time.Second, time.Second, 200, passphraseFor(c.rpcEndpoint), testLog)
 	b, _, err := f.Fetch(context.Background(), c, BLOCK_TO_FETCH)
 	require.NoError(t, err)
 
@@ -67,7 +67,7 @@ func Test_FetchSpecificLedger_ProtocolUpgrade23_MetadataV2(t *testing.T) {
 	const BLOCK_TO_FETCH = uint64(2063)
 
 	c := NewClient(RPC_TESTNET_ENDPOINT, testLog, testTracer)
-	f := NewFetcher(time.Second, time.Second, 200, c.rpcEndpoint == RPC_MAINNET_ENDPOINT, testLog)
+	f := NewFetcher(time.Second, time.Second, 200, passphraseFor(c.rpcEndpoint), testLog)
 	b, _, err := f.Fetch(context.Background(), c, BLOCK_TO_FETCH)
 	require.NoError(t, err)
 
