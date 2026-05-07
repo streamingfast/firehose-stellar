@@ -22,7 +22,6 @@ import (
 	"github.com/streamingfast/cli/sflags"
 	firecore "github.com/streamingfast/firehose-core"
 	"github.com/streamingfast/firehose-core/blockpoller"
-	"github.com/streamingfast/firehose-stellar/decoder"
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
 	"github.com/streamingfast/firehose-stellar/types"
 	"github.com/streamingfast/firehose-stellar/utils"
@@ -55,6 +54,9 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 		startBlock, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("unable to parse first streamable block %s: %w", args[0], err)
+		}
+		if startBlock < 1 {
+			return fmt.Errorf("first streamable block must be >= 1 (stellar ledger sequences start at 1)")
 		}
 		if startBlock > math.MaxUint32 {
 			return fmt.Errorf("first streamable block %d exceeds stellar ledger sequence range (uint32)", startBlock)
@@ -161,7 +163,6 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 		fetcher := &CaptiveCoreFetcher{
 			networkPassphrase: networkPassphrase,
 			logger:            logger,
-			decoder:           decoder.NewDecoder(logger),
 		}
 
 		handler := blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block")
@@ -206,7 +207,6 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 type CaptiveCoreFetcher struct {
 	networkPassphrase string
 	logger            *zap.Logger
-	decoder           *decoder.Decoder
 }
 
 func (f *CaptiveCoreFetcher) convertLedgerCloseMetaToBstreamBlock(ledgerMetadata *xdr.LedgerCloseMeta) (*pbbstream.Block, error) {
@@ -218,20 +218,7 @@ func (f *CaptiveCoreFetcher) convertLedgerCloseMetaToBstreamBlock(ledgerMetadata
 	case ledgerMetadata.V0 != nil:
 		ledgerHeader = ledgerMetadata.V0.LedgerHeader
 		ledgerSeq = uint32(ledgerHeader.Header.LedgerSeq)
-		// V0 doesn't have the hash directly in LedgerCloseMeta, but we can compute it if needed or get it from Header
-		// Actually LedgerHeaderHistoryEntry HAS the hash in a way? No, LedgerHeaderHistoryEntry is:
-		// struct LedgerHeaderHistoryEntry
-		// {
-		//     Hash hash;
-		//     LedgerHeader header;
-		//     // reserved for future use
-		//     union switch (int v)
-		//     {
-		//     case 0:
-		//         void;
-		//     }
-		//     ext;
-		// };
+		// In V0, the ledger hash is available on LedgerHeaderHistoryEntry.
 		ledgerHash = ledgerMetadata.V0.LedgerHeader.Hash
 	case ledgerMetadata.V1 != nil:
 		ledgerHeader = ledgerMetadata.V1.LedgerHeader
