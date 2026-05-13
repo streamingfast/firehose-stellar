@@ -1,5 +1,16 @@
 package main
 
+// FIXME(go-json-experiment): this file (and go.mod) pin
+// github.com/go-json-experiment/json to the Oct 2023 snapshot
+// (v0.0.0-20231013223334-54c864be5b8d) because that is the version
+// firehose-core@v1.14.x still expects in its own
+// firehose-core/json/marshallers.go. The Jan 2025+ snapshots renamed
+// NewMarshalers -> JoinMarshalers and MarshalFuncV2 -> MarshalToFunc;
+// keeping the old names here is a temporary shim. When firehose-core
+// bumps its pin / renames its call sites, flip the names below back
+// to JoinMarshalers / MarshalToFunc and bump go-json-experiment in
+// go.mod.
+
 import (
 	"encoding/hex"
 	"errors"
@@ -81,11 +92,11 @@ func runDecodeBlockE(cmd *cobra.Command, args []string) error {
 		}
 
 		out, err := json.Marshal(stellarBlock,
-			json.WithMarshalers(json.JoinMarshalers(
-				json.MarshalToFunc(marshalBytes),
-				json.MarshalToFunc(marshalAccountId),
-				json.MarshalToFunc(marshalTransaction),
-				json.MarshalToFunc(marshalMuxedAccount),
+			json.WithMarshalers(json.NewMarshalers(
+				json.MarshalFuncV2(marshalBytes),
+				json.MarshalFuncV2(marshalAccountId),
+				json.MarshalFuncV2(marshalTransaction),
+				json.MarshalFuncV2(marshalMuxedAccount),
 			)),
 			jsontext.WithIndent("  "),
 		)
@@ -158,10 +169,10 @@ func marshalTransaction(e *jsontext.Encoder, value *pbstellar.Transaction, optio
 	}
 
 	out, err := json.Marshal(trx,
-		json.WithMarshalers(json.JoinMarshalers(
-			json.MarshalToFunc(marshalBytes),
-			json.MarshalToFunc(marshalAccountId),
-			json.MarshalToFunc(marshalMuxedAccount),
+		json.WithMarshalers(json.NewMarshalers(
+			json.MarshalFuncV2(marshalBytes),
+			json.MarshalFuncV2(marshalAccountId),
+			json.MarshalFuncV2(marshalMuxedAccount),
 		)),
 	)
 	if err != nil {

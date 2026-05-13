@@ -4,6 +4,7 @@ import (
 	"github.com/spf13/cobra"
 	"github.com/streamingfast/cli"
 	. "github.com/streamingfast/cli"
+	"github.com/streamingfast/firehose-stellar/cmd/tools/fix"
 	"github.com/streamingfast/logging"
 	"go.uber.org/zap"
 )
@@ -40,6 +41,10 @@ func main() {
 		Group("fetch", "Reader Node block fetchers (rpc, captive-core)",
 			CobraCmd(NewFetchRpcCmd(logger, tracer)),
 			CobraCmd(NewFetchCaptiveCoreCmd(logger, tracer)),
+		),
+
+		Group("fix", "One-shot maintenance commands for stored blocks",
+			CobraCmd(fix.NewToolsFixBlockHashesCmd(logger)),
 		),
 
 		CobraCmd(NewToolDecodeBlockCmd()),
