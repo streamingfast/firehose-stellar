@@ -25,9 +25,9 @@ func NewFetchRpcCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 	}
 
 	cmd.Flags().StringArray("endpoints", []string{}, "List of endpoints to use to fetch different method calls")
-	cmd.Flags().String("state-dir", "/data/poller", "interval between fetch")
-	cmd.Flags().Duration("interval-between-fetch", 0, "interval between fetch")
-	cmd.Flags().Duration("latest-block-retry-interval", time.Second, "interval between fetch")
+	cmd.Flags().String("state-dir", "/data/poller", "directory used to persist poller state between runs")
+	cmd.Flags().Duration("interval-between-fetch", 0, "interval between fetch attempts when the chain head has not advanced")
+	cmd.Flags().Duration("latest-block-retry-interval", time.Second, "interval to wait before retrying after a failed latest-block fetch")
 	cmd.Flags().Duration("max-block-fetch-duration", 3*time.Second, "maximum delay before considering a block fetch as failed")
 	cmd.Flags().Int("block-fetch-batch-size", 1, "Number of blocks to fetch in a single batch")
 	cmd.Flags().Int("transaction-fetch-limit", 200, "Maximum number of transactions to fetch at the same time")
