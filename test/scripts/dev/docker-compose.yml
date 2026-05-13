@@ -1,0 +1,55 @@
+# Dev stack for battlefield (firehose-stellar integration tests).
+#
+# Only one service: stellar/quickstart, which IS the chain (stellar-core
+# validator + horizon + friendbot + soroban-rpc). The firestellar fetchers
+# (poller and captive-core) run in-process from `go test` via the
+# captivecore + rpc packages, so no firestellar container is needed.
+#
+# Up/down:
+#   docker compose -f test/scripts/dev/docker-compose.yml up -d
+#   docker compose -f test/scripts/dev/docker-compose.yml down
+#
+# Or via wrappers:
+#   test/scripts/dev/up.sh
+#   test/scripts/dev/down.sh
+#
+# Or — easiest — just `go test ./test/scenarios/...`; the suite's TestMain
+# brings this stack up and tears it down around the run (set
+# BATTLEFIELD_MANAGE_STACK=0 to opt out).
+
+services:
+  quickstart:
+    image: ${QUICKSTART_IMAGE:-stellar/quickstart:testing}
+    # quickstart is amd64-only; pin so we don't rely on docker's default
+    # platform inference (which warns on Apple Silicon).
+    platform: linux/amd64
+    container_name: ${COMPOSE_PROJECT_NAME:-battlefield-stellar}-quickstart
+    command:
+      - --local
+      - --enable-soroban-rpc
+    # quickstart's bundled stellar-core.cfg uses a well-known fixed
+    # NODE_SEED, so the validator pubkey is a stable constant the
+    # in-process captive-core fetcher can hardcode in its follower
+    # config (see configs/captive-core-follower-host.cfg).
+    ports:
+      # Horizon + friendbot + soroban-rpc all multiplexed on :8000.
+      - "${QUICKSTART_HORIZON_PORT:-8000}:8000"
+      # stellar-core peer port — the in-process captive-core fetcher
+      # dials this to join the standalone network as a non-validating
+      # peer.
+      - "${QUICKSTART_PEER_PORT:-11625}:11625"
+      # History archive (stellar-core's HTTP file server) — captive-core
+      # needs at least one archive URL to catch up. Mapped to the host
+      # so the in-process fetcher can reach it.
+      - "${QUICKSTART_HISTORY_PORT:-1570}:1570"
+    healthcheck:
+      # `/friendbot` without `?addr=...` returns HTTP 400 — but it being
+      # reachable at all means horizon's reverse-proxy is up and friendbot
+      # is responding. We deliberately don't use curl -f so a 4xx counts
+      # as a successful probe (the only failure modes here are connection
+      # refused or no response, which exit non-zero on their own).
+      test: ["CMD-SHELL", "curl -sS -o /dev/null http://localhost:8000/friendbot"]
+      interval: 2s
+      timeout: 3s
+      retries: 90
+      start_period: 5s

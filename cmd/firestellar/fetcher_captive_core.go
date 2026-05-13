@@ -1,34 +1,22 @@
+// Cobra wrapper around the captivecore package. All meaningful logic
+// lives in github.com/streamingfast/firehose-stellar/captivecore — this
+// file just parses flags into captivecore.Config and runs the
+// PrepareRange + GetBlock loop that firecore expects.
 package main
 
 import (
-	"encoding/base64"
-	"encoding/hex"
-	"errors"
 	"fmt"
-	"io"
-	"math"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/sirupsen/logrus"
 	"github.com/spf13/cobra"
-	"github.com/stellar/go-stellar-sdk/ingest"
-	"github.com/stellar/go-stellar-sdk/ingest/ledgerbackend"
-	"github.com/stellar/go-stellar-sdk/network"
-	"github.com/stellar/go-stellar-sdk/support/log"
-	"github.com/stellar/go-stellar-sdk/xdr"
-	pbbstream "github.com/streamingfast/bstream/pb/sf/bstream/v1"
 	"github.com/streamingfast/cli/sflags"
 	firecore "github.com/streamingfast/firehose-core"
 	"github.com/streamingfast/firehose-core/blockpoller"
-	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
-	"github.com/streamingfast/firehose-stellar/types"
-	"github.com/streamingfast/firehose-stellar/utils"
+	"github.com/streamingfast/firehose-stellar/captivecore"
 	"github.com/streamingfast/logging"
 	"go.uber.org/zap"
-	"google.golang.org/protobuf/types/known/anypb"
-	"google.golang.org/protobuf/types/known/timestamppb"
 )
 
 func NewFetchCaptiveCoreCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
@@ -49,149 +37,70 @@ func NewFetchCaptiveCoreCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Co
 	return cmd
 }
 
-func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecutor {
-	return func(cmd *cobra.Command, args []string) (err error) {
+func fetchCaptiveCoreRunE(logger *zap.Logger, _ logging.Tracer) firecore.CommandExecutor {
+	return func(cmd *cobra.Command, args []string) error {
 		startBlock, err := strconv.ParseUint(args[0], 10, 64)
 		if err != nil {
 			return fmt.Errorf("unable to parse first streamable block %s: %w", args[0], err)
 		}
-		if startBlock < 1 {
-			return fmt.Errorf("first streamable block must be >= 1 (stellar ledger sequences start at 1)")
-		}
-		if startBlock > math.MaxUint32 {
-			return fmt.Errorf("first streamable block %d exceeds stellar ledger sequence range (uint32)", startBlock)
-		}
 
-		stellarCoreBin := sflags.MustGetString(cmd, "stellar-core-bin")
-		stellarCoreNetwork := sflags.MustGetString(cmd, "stellar-core-network")
-		networkPassphraseOverride := sflags.MustGetString(cmd, "stellar-core-network-passphrase")
-		archiveURLsOverride := sflags.MustGetStringSlice(cmd, "stellar-core-history-archive-urls")
-
-		var archiveURLs []string
-		var networkPassphrase string
-		var defaultTomlData []byte
-
-		switch stellarCoreNetwork {
-		case "mainnet":
-			archiveURLs = network.PublicNetworkhistoryArchiveURLs
-			networkPassphrase = network.PublicNetworkPassphrase
-			defaultTomlData = ledgerbackend.PubnetDefaultConfig
-		case "testnet":
-			archiveURLs = network.TestNetworkhistoryArchiveURLs
-			networkPassphrase = network.TestNetworkPassphrase
-			defaultTomlData = ledgerbackend.TestnetDefaultConfig
-		case "custom":
-			// passphrase + archive URLs must come from override flags
-		default:
-			return fmt.Errorf("unsupported stellar network: %s (want mainnet|testnet|custom)", stellarCoreNetwork)
-		}
-
-		if networkPassphraseOverride != "" {
-			networkPassphrase = networkPassphraseOverride
-		}
-		if len(archiveURLsOverride) > 0 {
-			archiveURLs = archiveURLsOverride
-		}
-
-		if networkPassphrase == "" {
-			return fmt.Errorf("--stellar-core-network-passphrase is required for custom network")
-		}
-		if len(archiveURLs) == 0 {
-			return fmt.Errorf("--stellar-core-history-archive-urls is required for custom network")
-		}
-
-		var captiveCoreToml *ledgerbackend.CaptiveCoreToml
-
-		// Match what soroban-rpc emits so blocks are byte-equivalent across both
-		// fetchers:
-		//   * EmitUnifiedEvents: TransactionMetaV4 (CAP-67) — populates classic-tx
-		//     transaction-events and per-operation contract-events. Without this,
-		//     stellar-core emits V3 and the SDK returns empty event arrays for
-		//     classic txs.
-		//   * EnforceSorobanDiagnosticEvents: stellar-core only emits diagnostic
-		//     events for Soroban txs when ENABLE_SOROBAN_DIAGNOSTIC_EVENTS=true.
-		//     Off by default for production perf; soroban-rpc forces it on.
-		//   * EnforceSorobanTransactionMetaExtV1: extra Soroban meta extension
-		//     soroban-rpc relies on.
-		// All three require stellar-core protocol >= 23.
-		params := ledgerbackend.CaptiveCoreTomlParams{
-			NetworkPassphrase:                  networkPassphrase,
-			HistoryArchiveURLs:                 archiveURLs,
-			CoreBinaryPath:                     stellarCoreBin,
-			EmitUnifiedEvents:                  true,
-			EnforceSorobanDiagnosticEvents:     true,
-			EnforceSorobanTransactionMetaExtV1: true,
-		}
-
-		stellarCoreConf := sflags.MustGetString(cmd, "stellar-core-conf")
-		if stellarCoreConf != "" {
-			var err error
-			captiveCoreToml, err = ledgerbackend.NewCaptiveCoreTomlFromFile(stellarCoreConf, params)
-			if err != nil {
-				return fmt.Errorf("setting up captive core toml from file %s: %w", stellarCoreConf, err)
-			}
-		} else {
-			if defaultTomlData == nil {
-				return fmt.Errorf("--stellar-core-conf is required for custom network (no bundled default)")
-			}
-			var err error
-			captiveCoreToml, err = ledgerbackend.NewCaptiveCoreTomlFromData(defaultTomlData, params)
-			if err != nil {
-				return fmt.Errorf("setting up captive core toml from default: %w", err)
-			}
-		}
-
-		captiveCoreLogger := log.DefaultLogger
-		coreLogLevel, err := parseStellarCoreLogLevel(sflags.MustGetString(cmd, "stellar-core-log-level"))
+		logLevel, err := parseStellarCoreLogLevel(sflags.MustGetString(cmd, "stellar-core-log-level"))
 		if err != nil {
 			return err
 		}
-		captiveCoreLogger.SetLevel(coreLogLevel)
-		config := ledgerbackend.CaptiveCoreConfig{
-			BinaryPath:         stellarCoreBin,
-			NetworkPassphrase:  networkPassphrase,
-			HistoryArchiveURLs: archiveURLs,
-			Toml:               captiveCoreToml,
-			Log:                captiveCoreLogger,
+
+		// Build the captivecore.Config from flags. ResolveNetwork fills
+		// defaults for mainnet/testnet; explicit overrides still win
+		// because we re-apply them after the call.
+		cfg := captivecore.Config{
+			BinaryPath:          sflags.MustGetString(cmd, "stellar-core-bin"),
+			StellarCoreConfPath: sflags.MustGetString(cmd, "stellar-core-conf"),
+			LogLevel:            logLevel,
+			Logger:              logger,
+		}
+		if err := cfg.ResolveNetwork(sflags.MustGetString(cmd, "stellar-core-network")); err != nil {
+			return err
+		}
+		if pass := sflags.MustGetString(cmd, "stellar-core-network-passphrase"); pass != "" {
+			cfg.NetworkPassphrase = pass
+		}
+		if urls := sflags.MustGetStringSlice(cmd, "stellar-core-history-archive-urls"); len(urls) > 0 {
+			cfg.HistoryArchiveURLs = urls
 		}
 
-		backend, err := ledgerbackend.NewCaptive(config)
+		// For custom networks, the bundled toml data is nil. The user
+		// must supply --stellar-core-conf in that case (captivecore
+		// validation also enforces this).
+		if cfg.StellarCoreConfPath == "" && cfg.DefaultTomlData == nil {
+			return fmt.Errorf("--stellar-core-conf is required for custom network (no bundled default)")
+		}
+
+		backend, err := captivecore.New(cfg)
 		if err != nil {
-			return fmt.Errorf("setting up captive core backend: %w", err)
+			return err
 		}
-
-		fetcher := &CaptiveCoreFetcher{
-			networkPassphrase: networkPassphrase,
-			logger:            logger,
-		}
+		defer backend.Close()
 
 		handler := blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block")
 		handler.Init()
 
 		ctx := cmd.Context()
-		logger.Info("preparing range", zap.Uint32("start_block", uint32(startBlock)))
-		if err := backend.PrepareRange(ctx, ledgerbackend.UnboundedRange(uint32(startBlock))); err != nil {
-			return fmt.Errorf("prepare range from %d: %w", startBlock, err)
+		if err := backend.PrepareRange(ctx, startBlock); err != nil {
+			return err
 		}
-		logger.Info("range prepared")
 
-		seq := uint32(startBlock)
+		seq := startBlock
 		for {
-			if ctx.Err() != nil {
-				return ctx.Err()
+			if err := ctx.Err(); err != nil {
+				return err
 			}
 
-			meta, err := backend.GetLedger(ctx, seq)
+			blk, err := backend.GetBlock(ctx, seq)
 			if err != nil {
-				return fmt.Errorf("get ledger %d: %w", seq, err)
+				return fmt.Errorf("get block %d: %w", seq, err)
 			}
 
-			blk, err := fetcher.convertLedgerCloseMetaToBstreamBlock(&meta)
-			if err != nil {
-				return fmt.Errorf("convert ledger %d: %w", seq, err)
-			}
-
-			logger.Info("processing block", zap.Uint32("seq", seq), zap.String("hash", blk.Id))
+			logger.Info("processing block", zap.Uint64("seq", seq), zap.String("hash", blk.Id))
 			if err := handler.Handle(blk); err != nil {
 				return fmt.Errorf("handling block %d: %w", blk.Number, err)
 			}
@@ -201,269 +110,8 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, tracer logging.Tracer) firecore.Co
 	}
 }
 
-// CaptiveCoreFetcher converts xdr.LedgerCloseMeta into the same pbbstream.Block
-// shape that the RPC fetcher emits. It is not a blockpoller.BlockFetcher — Captive
-// Core is a streaming source, the caller drives the loop directly.
-type CaptiveCoreFetcher struct {
-	networkPassphrase string
-	logger            *zap.Logger
-}
-
-func (f *CaptiveCoreFetcher) convertLedgerCloseMetaToBstreamBlock(ledgerMetadata *xdr.LedgerCloseMeta) (*pbbstream.Block, error) {
-	var ledgerHeader xdr.LedgerHeaderHistoryEntry
-	var ledgerSeq uint32
-	var ledgerHash xdr.Hash
-
-	switch {
-	case ledgerMetadata.V0 != nil:
-		ledgerHeader = ledgerMetadata.V0.LedgerHeader
-		ledgerSeq = uint32(ledgerHeader.Header.LedgerSeq)
-		// In V0, the ledger hash is available on LedgerHeaderHistoryEntry.
-		ledgerHash = ledgerMetadata.V0.LedgerHeader.Hash
-	case ledgerMetadata.V1 != nil:
-		ledgerHeader = ledgerMetadata.V1.LedgerHeader
-		ledgerSeq = uint32(ledgerHeader.Header.LedgerSeq)
-		ledgerHash = ledgerMetadata.V1.LedgerHeader.Hash
-	case ledgerMetadata.V2 != nil:
-		ledgerHeader = ledgerMetadata.V2.LedgerHeader
-		ledgerSeq = uint32(ledgerHeader.Header.LedgerSeq)
-		ledgerHash = ledgerMetadata.V2.LedgerHeader.Hash
-	default:
-		return nil, fmt.Errorf("unsupported LedgerCloseMeta version")
-	}
-
-	ledgerCloseTime := int64(ledgerHeader.Header.ScpValue.CloseTime)
-
-	transactions, err := f.extractTransactionsFromLedgerMetadata(ledgerMetadata)
-	if err != nil {
-		return nil, fmt.Errorf("extracting transactions: %w", err)
-	}
-
-	stellarTransactions := make([]*pbstellar.Transaction, 0)
-	for i, trx := range transactions {
-		txHashBytes, err := hex.DecodeString(trx.TxHash)
-		if err != nil {
-			return nil, fmt.Errorf("decoding tx hash %s: %w", trx.TxHash, err)
-		}
-		envelopeXdr, err := base64.StdEncoding.DecodeString(trx.EnvelopeXdr)
-		if err != nil {
-			return nil, fmt.Errorf("decoding envelope XDR: %w", err)
-		}
-		resultXdr, err := base64.StdEncoding.DecodeString(trx.ResultXdr)
-		if err != nil {
-			return nil, fmt.Errorf("decoding result XDR: %w", err)
-		}
-
-		events := &pbstellar.Events{}
-		if trx.Events != nil {
-			diagnosticEvents := make([][]byte, 0)
-			for _, event := range trx.Events.DiagnosticEventsXdr {
-				decodedEvent, err := base64.StdEncoding.DecodeString(event)
-				if err != nil {
-					return nil, fmt.Errorf("decoding diagnostic event: %w", err)
-				}
-				diagnosticEvents = append(diagnosticEvents, decodedEvent)
-			}
-
-			transactionsEvents := make([][]byte, 0)
-			for _, event := range trx.Events.TransactionEventsXdr {
-				decodedEvent, err := base64.StdEncoding.DecodeString(event)
-				if err != nil {
-					return nil, fmt.Errorf("decoding transaction event: %w", err)
-				}
-				transactionsEvents = append(transactionsEvents, decodedEvent)
-			}
-
-			contractEvents := make([]*pbstellar.ContractEvent, 0)
-			for _, eventsGroup := range trx.Events.ContractEventsXdr {
-				innerContractEvents := make([][]byte, 0)
-				for _, event := range eventsGroup {
-					decodedEvent, err := base64.StdEncoding.DecodeString(event)
-					if err != nil {
-						return nil, fmt.Errorf("decoding contract event: %w", err)
-					}
-					innerContractEvents = append(innerContractEvents, decodedEvent)
-				}
-				contractEvents = append(contractEvents, &pbstellar.ContractEvent{
-					Events: innerContractEvents,
-				})
-			}
-
-			events.DiagnosticEventsXdr = diagnosticEvents
-			events.TransactionEventsXdr = transactionsEvents
-			events.ContractEventsXdr = contractEvents
-		}
-
-		stellarTransactions = append(stellarTransactions, &pbstellar.Transaction{
-			Hash:             txHashBytes,
-			Status:           utils.ConvertTransactionStatus(trx.Status),
-			CreatedAt:        timestamppb.New(time.Unix(ledgerCloseTime, 0)),
-			ApplicationOrder: uint64(i + 1),
-			EnvelopeXdr:      envelopeXdr,
-			ResultXdr:        resultXdr,
-			Events:           events,
-		})
-	}
-
-	previousLedgerHash := ledgerHeader.Header.PreviousLedgerHash[:]
-
-	stellarBlk := &pbstellar.Block{
-		Number: uint64(ledgerSeq),
-		Hash:   ledgerHash[:],
-		Header: &pbstellar.Header{
-			LedgerVersion:      uint32(ledgerHeader.Header.LedgerVersion),
-			PreviousLedgerHash: previousLedgerHash,
-			TotalCoins:         int64(ledgerHeader.Header.TotalCoins),
-			BaseFee:            uint32(ledgerHeader.Header.BaseFee),
-			BaseReserve:        uint32(ledgerHeader.Header.BaseReserve),
-		},
-		Version:      1,
-		Transactions: stellarTransactions,
-		CreatedAt:    timestamppb.New(time.Unix(ledgerCloseTime, 0)),
-	}
-
-	return f.convertStellarBlockToBstreamBlock(stellarBlk)
-}
-
-func (f *CaptiveCoreFetcher) extractTransactionsFromLedgerMetadata(ledgerMetadata *xdr.LedgerCloseMeta) ([]types.Transaction, error) {
-	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(f.networkPassphrase, *ledgerMetadata)
-	if err != nil {
-		return nil, fmt.Errorf("failed to create ledger transaction reader: %w", err)
-	}
-	defer reader.Close()
-
-	transactions := make([]types.Transaction, 0)
-	for {
-		tx, err := reader.Read()
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				break
-			}
-			return nil, fmt.Errorf("failed to read transaction: %w", err)
-		}
-
-		transaction, err := f.convertLedgerTransactionToTypes(tx)
-		if err != nil {
-			return nil, fmt.Errorf("failed to convert transaction: %w", err)
-		}
-
-		transactions = append(transactions, *transaction)
-	}
-
-	return transactions, nil
-}
-
-func (f *CaptiveCoreFetcher) convertLedgerTransactionToTypes(tx ingest.LedgerTransaction) (*types.Transaction, error) {
-	envelopeXdr, err := tx.Envelope.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal envelope: %w", err)
-	}
-	envelopeXdrStr := base64.StdEncoding.EncodeToString(envelopeXdr)
-
-	resultXdr, err := tx.Result.Result.MarshalBinary()
-	if err != nil {
-		return nil, fmt.Errorf("failed to marshal result: %w", err)
-	}
-	resultXdrStr := base64.StdEncoding.EncodeToString(resultXdr)
-
-	txHash := tx.Result.TransactionHash.HexString()
-
-	status := "UNKNOWN"
-	if tx.Successful() {
-		status = "SUCCESS"
-	} else {
-		status = "FAILED"
-	}
-
-	events, err := f.convertLedgerTransactionEventsToRPCEvents(tx)
-	if err != nil {
-		f.logger.Warn("failed to convert events", zap.Error(err))
-		events = nil
-	}
-
-	return &types.Transaction{
-		TxHash:      txHash,
-		EnvelopeXdr: envelopeXdrStr,
-		ResultXdr:   resultXdrStr,
-		Status:      status,
-		Events:      events,
-	}, nil
-}
-
-func (f *CaptiveCoreFetcher) convertLedgerTransactionEventsToRPCEvents(tx ingest.LedgerTransaction) (*types.RPCEvents, error) {
-	rpcEvents := &types.RPCEvents{
-		DiagnosticEventsXdr:  make([]string, 0),
-		TransactionEventsXdr: make([]string, 0),
-		ContractEventsXdr:    make([][]string, 0),
-	}
-
-	diagnosticEvents, err := tx.GetDiagnosticEvents()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get diagnostic events: %w", err)
-	}
-	for _, event := range diagnosticEvents {
-		eventXdr, err := event.MarshalBinary()
-		if err != nil {
-			continue
-		}
-		rpcEvents.DiagnosticEventsXdr = append(rpcEvents.DiagnosticEventsXdr, base64.StdEncoding.EncodeToString(eventXdr))
-	}
-
-	transactionEvents, err := tx.GetTransactionEvents()
-	if err != nil {
-		return nil, fmt.Errorf("failed to get transaction events: %w", err)
-	}
-	for _, event := range transactionEvents.TransactionEvents {
-		eventXdr, err := event.MarshalBinary()
-		if err != nil {
-			continue
-		}
-		rpcEvents.TransactionEventsXdr = append(rpcEvents.TransactionEventsXdr, base64.StdEncoding.EncodeToString(eventXdr))
-	}
-
-	for _, operationEvents := range transactionEvents.OperationEvents {
-		operationEventStrings := make([]string, 0, len(operationEvents))
-		if operationEvents == nil {
-			continue
-		}
-		for _, event := range operationEvents {
-			eventXdr, err := event.MarshalBinary()
-			if err != nil {
-				continue
-			}
-			operationEventStrings = append(operationEventStrings, base64.StdEncoding.EncodeToString(eventXdr))
-		}
-		rpcEvents.ContractEventsXdr = append(rpcEvents.ContractEventsXdr, operationEventStrings)
-	}
-
-	return rpcEvents, nil
-}
-
-func (f *CaptiveCoreFetcher) convertStellarBlockToBstreamBlock(stellarBlk *pbstellar.Block) (*pbbstream.Block, error) {
-	anyBlock, err := anypb.New(stellarBlk)
-	if err != nil {
-		return nil, fmt.Errorf("unable to create anypb: %w", err)
-	}
-
-	// Hex-encode Block.Id / ParentId so the strings are safe for one-block-file
-	// naming (firecore mindreader splits on '/' as a path separator). Standard
-	// base64 of the 32-byte ledger hash frequently contains '/', which corrupts
-	// filenames. The underlying Hash bytes in pbstellar.Block.Hash remain raw
-	// XDR bytes; only the bstream string ID changes.
-	stellarBlockHash := hex.EncodeToString(stellarBlk.Hash)
-	previousStellarBlockHash := hex.EncodeToString(stellarBlk.Header.PreviousLedgerHash)
-
-	return &pbbstream.Block{
-		Number:    stellarBlk.Number,
-		Id:        stellarBlockHash,
-		ParentId:  previousStellarBlockHash,
-		Timestamp: stellarBlk.CreatedAt,
-		LibNum:    stellarBlk.Number - 1,
-		ParentNum: stellarBlk.Number - 1,
-		Payload:   anyBlock,
-	}, nil
-}
-
+// parseStellarCoreLogLevel translates the CLI flag string into a
+// logrus.Level. Kept here so the cmd shim is self-contained.
 func parseStellarCoreLogLevel(s string) (logrus.Level, error) {
 	switch strings.ToLower(s) {
 	case "debug":

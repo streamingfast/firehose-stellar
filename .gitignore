@@ -13,3 +13,5 @@ devel/data
 /data-cc
 /captive-core
 
+# Tests
+test/.data
