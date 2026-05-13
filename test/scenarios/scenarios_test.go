@@ -3,13 +3,13 @@
 // via firehose, and asserts the structural transaction view against a
 // recorded snapshot.
 //
-// Run with:
+// Run from the repo root with:
 //
-//	go test ./scenarios/... -v
+//	go test ./test/scenarios/... -v
 //
 // Or to regenerate all snapshots:
 //
-//	SNAPSHOTS_UPDATE=. go test ./scenarios/... -v
+//	SNAPSHOTS_UPDATE=. go test ./test/scenarios/... -v
 package scenarios
 
 import (

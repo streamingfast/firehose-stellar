@@ -230,7 +230,7 @@ func (r *Runner) compareAgainstSnapshot(id string, view *libxdr.TxView, ledger u
 	//
 	// Renaming a Test… function changes the scope and therefore every
 	// derived address, so the affected snapshot must be regenerated:
-	//   SNAPSHOTS_UPDATE=^<scenario/id>$ scripts/run_tests.sh
+	//   SNAPSHOTS_UPDATE=^<scenario/id>$ go test ./test/scenarios/...
 	snap.Bind("ledger", strconv.FormatUint(ledger, 10))
 	snap.Bind("hash", view.Hash)
 	snap.Bind("createdAt", view.CreatedAt)

@@ -1,7 +1,8 @@
 //go:build ignore
 
 // Tiny helper to print the validator public key for the well-known
-// quickstart --local NODE_SEED. Run via: go run scripts/dev/configs/derive_pubkey.go
+// quickstart --local NODE_SEED. Run from the repo root via:
+//   go run test/scripts/dev/configs/derive_pubkey.go
 package main
 
 import (

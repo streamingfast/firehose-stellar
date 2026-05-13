@@ -66,7 +66,7 @@ If `stellar-core` is not on `$PATH`, the captive-core fetcher silently disables 
 ## Prerequisites
 
 - `docker` + `docker compose` plugin (for quickstart)
-- `go` 1.25+
+- `go` 1.26+
 - `stellar-core` binary on `$PATH` (for captive-core in-process fetcher)
   - macOS: `brew install stellar/sdf/stellar-core`
   - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org)

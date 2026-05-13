@@ -63,7 +63,7 @@ func (c *Client) FundAccount(address string) error {
 
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		resp, err := c.httpClient.Get(c.FriendbotURL + "/?addr=" + address)
+		resp, err := c.httpClient.Get(c.FriendbotURL + "?addr=" + address)
 		if err != nil {
 			lastErr = fmt.Errorf("friendbot request: %w", err)
 		} else {
