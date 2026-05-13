@@ -30,11 +30,9 @@ var _, inProcessTracer = logging.PackageLogger("test_inprocess", "github.com/str
 // the caller's process. Useful for integration tests that want byte-
 // equivalent output to the production poller without the docker overhead.
 type InProcessRPCFetcher struct {
-	name              string
-	client            *rpc.Client
-	fetcher           *rpc.Fetcher
-	logger            *zap.Logger
-	networkPassphrase string
+	name    string
+	client  *rpc.Client
+	fetcher *rpc.Fetcher
 
 	// rpc.Fetcher caches the last-seen ledger and won't drive its
 	// internal "wait for chain to catch up" loop concurrently. Serialize
@@ -112,11 +110,9 @@ func NewInProcessRPCFetcher(cfg InProcessRPCConfig) (*InProcessRPCFetcher, error
 		logger,
 	)
 	return &InProcessRPCFetcher{
-		name:              name,
-		client:            client,
-		fetcher:           fetcher,
-		logger:            logger,
-		networkPassphrase: cfg.NetworkPassphrase,
+		name:    name,
+		client:  client,
+		fetcher: fetcher,
 	}, nil
 }
 

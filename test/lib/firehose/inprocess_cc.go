@@ -17,7 +17,6 @@ import (
 
 	"github.com/streamingfast/firehose-stellar/captivecore"
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
-	"go.uber.org/zap"
 )
 
 // InProcessCaptiveCoreFetcher implements Fetcher by driving a captivecore.Backend
@@ -29,7 +28,6 @@ import (
 type InProcessCaptiveCoreFetcher struct {
 	name    string
 	backend *captivecore.Backend
-	logger  *zap.Logger
 
 	mu             sync.Mutex
 	rangePrepared  bool
@@ -50,7 +48,6 @@ func NewInProcessCaptiveCoreFetcher(name string, cfg captivecore.Config) (*InPro
 	return &InProcessCaptiveCoreFetcher{
 		name:    name,
 		backend: backend,
-		logger:  cfg.Logger,
 	}, nil
 }
 
