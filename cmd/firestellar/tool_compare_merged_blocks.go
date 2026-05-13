@@ -272,6 +272,10 @@ func sanitizeBlockInPlace(blk *pbbstream.Block) error {
 		return fmt.Errorf("unmarshalling payload: %w", err)
 	}
 
+	if stellarBlk.Header == nil {
+		return fmt.Errorf("stellar block %d: nil Header (malformed or unexpected version)", stellarBlk.Number)
+	}
+
 	recoveredHash, err := fix.ConvertBrokenHash(stellarBlk.Hash)
 	if err != nil {
 		return fmt.Errorf("recover Hash: %w", err)

@@ -158,10 +158,15 @@ func decodeContractEvents(groups []*pbstellar.ContractEvent) []any {
 //     their strkey "G…" form so $name-substitution can match them.
 //
 //  2. normalizeDynamicFields replaces per-run-varying fields (signatures,
-//     signature hints, sequence numbers) with fixed placeholder strings.
-//     These vary every run because the test creates fresh keypairs and
-//     submits new transactions; without this pass every snapshot would
-//     fail cross-run validation.
+//     signature hints, sequence numbers, ledger seqs, timestamps) with
+//     fixed placeholder strings. Keypairs and addresses are deterministic
+//     across runs because runner.Config.AccountSeedScope derives them
+//     from the test name (so SAC contract IDs are stable too). The drift
+//     left to template is in horizon-assigned values (transaction
+//     sequence numbers, ledger numbers, createdAt) and in the signature
+//     bytes themselves — Ed25519 signatures are deterministic per
+//     (key, message), but every run produces a different message because
+//     the templated seqnum and ledger flow into the envelope.
 //
 //  3. stripNulls removes nil entries from objects. The Go SDK marshals
 //     discriminated unions as a struct with one populated field plus null

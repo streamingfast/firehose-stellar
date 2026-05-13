@@ -36,8 +36,9 @@ type Config struct {
 
 	// DataRoot is the host dir used for compose logs + captive-core
 	// working files. Defaults to <testRoot>/.data, where <testRoot> is
-	// the dir three levels above ComposeFile (i.e. the repo's test/
-	// directory when ComposeFile is test/scripts/dev/docker-compose.yml).
+	// the directory three levels above ComposeFile — i.e. the repo's
+	// test/ dir when ComposeFile is test/scripts/dev/docker-compose.yml.
+	// Not the repo root; the name reflects the actual derivation.
 	DataRoot string
 
 	// QuickstartImage overrides docker-compose.yml's
@@ -84,7 +85,7 @@ func DefaultConfig() Config {
 // Stack drives one quickstart lifecycle.
 type Stack struct {
 	cfg      Config
-	repoRoot string
+	testRoot string
 }
 
 // New validates cfg, resolves ComposeFile + DataRoot + LogFile if blank,
@@ -117,9 +118,9 @@ func New(cfg Config) (*Stack, error) {
 		cfg.ComposeFile = found
 	}
 
-	repoRoot := filepath.Dir(filepath.Dir(filepath.Dir(cfg.ComposeFile)))
+	testRoot := filepath.Dir(filepath.Dir(filepath.Dir(cfg.ComposeFile)))
 	if cfg.DataRoot == "" {
-		cfg.DataRoot = filepath.Join(repoRoot, ".data")
+		cfg.DataRoot = filepath.Join(testRoot, ".data")
 	}
 	if err := os.MkdirAll(cfg.DataRoot, 0o755); err != nil {
 		return nil, fmt.Errorf("mkdir data root: %w", err)
@@ -128,7 +129,7 @@ func New(cfg Config) (*Stack, error) {
 		cfg.LogFile = filepath.Join(cfg.DataRoot, "compose.log")
 	}
 
-	return &Stack{cfg: cfg, repoRoot: repoRoot}, nil
+	return &Stack{cfg: cfg, testRoot: testRoot}, nil
 }
 
 // ComposeFile returns the resolved docker-compose.yml path.

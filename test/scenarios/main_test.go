@@ -88,7 +88,6 @@ func runTests(m *testing.M) int {
 			if err := stack.Down(ctx); err != nil {
 				fmt.Fprintf(os.Stderr, "quickstart down: %v\n", err)
 			}
-			_ = exitCode
 		}()
 
 		if envBool("AUTO_RESET", true) {
