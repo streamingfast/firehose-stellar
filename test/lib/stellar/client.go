@@ -28,18 +28,21 @@ type Client struct {
 	Horizon       *horizonclient.Client
 	NetworkPhrase string
 	FriendbotURL  string
+	httpClient    *http.Client
 }
 
 // NewClient returns a Client wired to the local stellar/quickstart standalone
 // network: horizon at http://localhost:8000, friendbot at the same host.
 func NewClient() (*Client, error) {
+	httpClient := &http.Client{Timeout: 30 * time.Second}
 	return &Client{
 		Horizon: &horizonclient.Client{
 			HorizonURL: "http://localhost:8000/",
-			HTTP:       &http.Client{Timeout: 30 * time.Second},
+			HTTP:       httpClient,
 		},
 		NetworkPhrase: StandaloneNetworkPassphrase,
 		FriendbotURL:  "http://localhost:8000/friendbot",
+		httpClient:    httpClient,
 	}, nil
 }
 
@@ -60,7 +63,7 @@ func (c *Client) FundAccount(address string) error {
 
 	var lastErr error
 	for attempt := 1; attempt <= maxAttempts; attempt++ {
-		resp, err := http.Get(c.FriendbotURL + "/?addr=" + address)
+		resp, err := c.httpClient.Get(c.FriendbotURL + "/?addr=" + address)
 		if err != nil {
 			lastErr = fmt.Errorf("friendbot request: %w", err)
 		} else {
@@ -135,12 +138,34 @@ func (c *Client) SubmitOps(source *keypair.Full, ops []txnbuild.Operation, extra
 }
 
 // SubmitOpsExpectFail builds and submits a transaction expected to fail at
-// horizon. It returns the underlying horizon error so callers can assert on it.
-// If the transaction unexpectedly succeeds, an error is returned.
+// horizon submission. It returns nil only when horizon itself rejects the
+// transaction (the expected case). Non-submission errors (build/sign, horizon
+// unreachable) are propagated so callers don't get false positives. If the
+// transaction unexpectedly succeeds, an error is returned.
 func (c *Client) SubmitOpsExpectFail(source *keypair.Full, ops []txnbuild.Operation, extraSigners ...*keypair.Full) error {
 	resp, err := c.SubmitOps(source, ops, extraSigners...)
 	if err != nil {
-		return nil
+		if _, ok := err.(*horizonclient.Error); ok {
+			return nil
+		}
+		if wrapped := unwrapHorizonError(err); wrapped != nil {
+			return nil
+		}
+		return fmt.Errorf("submit tx (expected horizon failure): %w", err)
 	}
 	return fmt.Errorf("expected submission to fail, got hash=%s ledger=%d", resp.Hash, resp.Ledger)
+}
+
+func unwrapHorizonError(err error) *horizonclient.Error {
+	for err != nil {
+		if he, ok := err.(*horizonclient.Error); ok {
+			return he
+		}
+		u, ok := err.(interface{ Unwrap() error })
+		if !ok {
+			return nil
+		}
+		err = u.Unwrap()
+	}
+	return nil
 }

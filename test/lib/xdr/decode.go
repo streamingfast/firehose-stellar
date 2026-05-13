@@ -211,7 +211,6 @@ func stripNulls(v any) {
 //   - Transaction.SeqNum (uint64)              → "$seqNum"
 //   - BumpSequenceOp.BumpTo (uint64)           → "$bumpTo"
 //   - InnerResultPair.TransactionHash ([32]B)  → "$innerTransactionHash"
-//   - ContractEvent.ContractId ([32]B)         → "$contractId"
 //
 // Tests submit a fresh transaction every run with new keypairs and the
 // horizon-assigned next-sequence-number for that account, so these
@@ -374,9 +373,9 @@ func normalizeAccountIDs(v any) {
 // payload is a 32-byte Ed25519 public key, or ("", false) if the value
 // isn't that shape. The pattern matches:
 //
-//   {Ed25519: [32 bytes]}                           // AccountId, PublicKey
-//   {Type: 0, Ed25519: [32 bytes]}                  // MuxedAccount (KeyTypeEd25519)
-//   {Type: 0, Ed25519: [32 bytes], Med25519: null}  // ditto, with explicit nulls
+//	{Ed25519: [32 bytes]}                           // AccountId, PublicKey
+//	{Type: 0, Ed25519: [32 bytes]}                  // MuxedAccount (KeyTypeEd25519)
+//	{Type: 0, Ed25519: [32 bytes], Med25519: null}  // ditto, with explicit nulls
 //
 // The 32-byte length check guards against rewriting unrelated fields
 // (signature blobs are 64 bytes; contract IDs are 32 bytes but live

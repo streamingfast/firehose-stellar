@@ -35,7 +35,9 @@ type Config struct {
 	ProjectName string
 
 	// DataRoot is the host dir used for compose logs + captive-core
-	// working files. Defaults to <repoRoot>/.data.
+	// working files. Defaults to <testRoot>/.data, where <testRoot> is
+	// the dir three levels above ComposeFile (i.e. the repo's test/
+	// directory when ComposeFile is test/scripts/dev/docker-compose.yml).
 	DataRoot string
 
 	// QuickstartImage overrides docker-compose.yml's

@@ -17,10 +17,11 @@ func CreateAccount(destination, startingBalance string) *txnbuild.CreateAccount 
 	return &txnbuild.CreateAccount{Destination: destination, Amount: startingBalance}
 }
 
-// ChangeTrust builds a trustline-creation operation for the given asset.
-func ChangeTrust(asset txnbuild.Asset, limit string) *txnbuild.ChangeTrust {
-	wrap := txnbuild.ChangeTrustAssetWrapper{Asset: asset.(txnbuild.CreditAsset)}
-	return &txnbuild.ChangeTrust{Line: wrap, Limit: limit}
+// ChangeTrust builds a trustline-creation operation for the given credit asset.
+// Trustlines apply only to non-native assets, so the parameter type rules out
+// txnbuild.NativeAsset at compile time.
+func ChangeTrust(asset txnbuild.CreditAsset, limit string) *txnbuild.ChangeTrust {
+	return &txnbuild.ChangeTrust{Line: txnbuild.ChangeTrustAssetWrapper{Asset: asset}, Limit: limit}
 }
 
 // ManageData stores a key/value pair on an account. Useful for "boring"
