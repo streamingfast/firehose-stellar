@@ -9,7 +9,7 @@ require (
 	github.com/go-json-experiment/json v0.0.0-20231013223334-54c864be5b8d // FIXME pinned to Oct 2023 snapshot to match firehose-core's internal json/marshallers.go (old API names NewMarshalers / MarshalFuncV2). Bump when firehose-core upstream renames its call sites to JoinMarshalers / MarshalToFunc and bumps this pin itself; see cmd/firestellar/tool_decode_block.go header.
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	github.com/spf13/cobra v1.10.2
-	github.com/stellar/go-stellar-sdk v0.4.0 // bumped in https://github.com/stellar/stellar-rpc/pull/623/changes#diff-33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6
+	github.com/stellar/go-stellar-sdk v0.5.0 // matches main; originally bumped in https://github.com/stellar/stellar-rpc/pull/623/changes#diff-33ef32bf6c23acb95f5902d7097b7a1d5128ca061167ec0716715b0b9eeaa5f6
 	github.com/streamingfast/bstream v0.0.2-0.20260402095814-607e840ece3d
 	github.com/streamingfast/cli v0.0.4-0.20250815192146-d8a233ec3d0b
 	github.com/streamingfast/dhttp v0.1.3-0.20251218140957-6d46b8f12eb1

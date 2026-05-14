@@ -114,6 +114,11 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 		var totalCompared, totalDifferent, totalMissingInCur, totalMissingInRef int
 		var stopErr = errors.New("stop-on-first-diff")
 
+		// Bundles already handled by the reference walk; the follow-up
+		// current-store walk skips them and only reports bundles that
+		// exist exclusively in the current store.
+		visited := map[string]bool{}
+
 		walkErr := refStore.Walk(ctx, check.WalkBlockPrefix(blockRange, mergedBundleSize), func(filename string) error {
 			fileStart, err := strconv.ParseUint(filename, 10, 64)
 			if err != nil {
@@ -127,6 +132,7 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 			if fileStart+mergedBundleSize <= startBlock {
 				return nil
 			}
+			visited[filename] = true
 			logger.Debug("comparing bundle", zap.String("file", filename), zap.Uint64("file_start", fileStart))
 
 			var (
@@ -203,6 +209,47 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 		})
 		if walkErr != nil && !errors.Is(walkErr, stopErr) {
 			return fmt.Errorf("walking reference bundles: %w", walkErr)
+		}
+
+		// Catch bundles that exist only in the current store — the
+		// reference walk alone would silently skip them and the tool
+		// would falsely report a clean diff.
+		if !errors.Is(walkErr, stopErr) {
+			curOnlyErr := curStore.Walk(ctx, check.WalkBlockPrefix(blockRange, mergedBundleSize), func(filename string) error {
+				if visited[filename] {
+					return nil
+				}
+				fileStart, err := strconv.ParseUint(filename, 10, 64)
+				if err != nil {
+					return nil
+				}
+				if fileStart >= stopBlock {
+					return dstore.StopIteration
+				}
+				if fileStart+mergedBundleSize <= startBlock {
+					return nil
+				}
+				logger.Debug("current-only bundle", zap.String("file", filename), zap.Uint64("file_start", fileStart))
+
+				curMap, err := readMergedBundle(ctx, curStore, filename, startBlock, stopBlock, sanitizeCur)
+				if err != nil {
+					return fmt.Errorf("reading current-only bundle %s: %w", filename, err)
+				}
+				for blockNum := max(startBlock, fileStart); blockNum < min(stopBlock, fileStart+mergedBundleSize); blockNum++ {
+					if _, ok := curMap[blockNum]; !ok {
+						continue
+					}
+					totalMissingInRef++
+					fmt.Printf("- Block %d missing in reference (present in current)\n", blockNum)
+					if stopOnFirstDiff {
+						return stopErr
+					}
+				}
+				return nil
+			})
+			if curOnlyErr != nil && !errors.Is(curOnlyErr, stopErr) {
+				return fmt.Errorf("walking current-only bundles: %w", curOnlyErr)
+			}
 		}
 
 		fmt.Println()
