@@ -30,7 +30,7 @@ ARG BINARY_NAME=firestellar
 # is asserted post-install to fail the build loudly if the apt index is
 # pinned/cached to a pre-fix package somehow.
 ARG TARGETARCH
-ARG STELLAR_CORE_MIN_VERSION=26.1.0
+ARG STELLAR_CORE_MIN_VERSION=26.1.0-3210.427aa3978
 RUN set -eux; \
     if [ "${TARGETARCH}" = "amd64" ]; then \
         apt-get update; \
