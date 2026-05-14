@@ -28,6 +28,7 @@ import (
 	fctypes "github.com/streamingfast/firehose-core/types"
 	"github.com/streamingfast/firehose-stellar/cmd/tools/fix"
 	pbstellar "github.com/streamingfast/firehose-stellar/pb/sf/stellar/type/v1"
+	"github.com/streamingfast/firehose-stellar/utils"
 	"go.uber.org/zap"
 	"google.golang.org/protobuf/encoding/protojson"
 	"google.golang.org/protobuf/proto"
@@ -69,6 +70,8 @@ Arguments:
 	cmd.Flags().Bool("sanitize-current", false, "treat current store as legacy v1-RPC output: recover Hash / PreviousLedgerHash via fix.ConvertBrokenHash before comparing")
 	cmd.Flags().Bool("diff", false, "print JSON diff (protojson) of each differing block")
 	cmd.Flags().Bool("stop-on-first-diff", false, "stop walking as soon as the first differing block is found")
+	cmd.Flags().Bool("oneblock", false, "[test] read per-block oneblock dbin files instead of 100-block merged bundles")
+	cmd.Flags().Bool("ignore-nondeterministic", false, "strip diagnostic events that are wall-clock dependent (core_metrics.invoke_time_nsecs) from both sides before comparing; stored data is left intact")
 
 	return cmd
 }
@@ -103,6 +106,8 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 		sanitizeCur := sflags.MustGetBool(cmd, "sanitize-current")
 		showDiff := sflags.MustGetBool(cmd, "diff")
 		stopOnFirstDiff := sflags.MustGetBool(cmd, "stop-on-first-diff")
+		useOneblock := sflags.MustGetBool(cmd, "oneblock")
+		ignoreNonDet := sflags.MustGetBool(cmd, "ignore-nondeterministic")
 
 		stopBlock := blockRange.MustGetStopBlock()
 		startBlock := uint64(blockRange.Start)
@@ -110,6 +115,10 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 		fmt.Printf("Comparing merged blocks [%d, %d)\n", startBlock, stopBlock)
 		fmt.Printf("  Reference: %s%s\n", args[0], sanitizeNote(sanitizeRef))
 		fmt.Printf("  Current:   %s%s\n", args[1], sanitizeNote(sanitizeCur))
+
+		if useOneblock {
+			return runOneblockCompare(ctx, refStore, curStore, startBlock, stopBlock, sanitizeRef, sanitizeCur, ignoreNonDet, showDiff, stopOnFirstDiff)
+		}
 
 		var totalCompared, totalDifferent, totalMissingInCur, totalMissingInRef int
 		var stopErr = errors.New("stop-on-first-diff")
@@ -145,7 +154,7 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 			wg.Add(2)
 			go func() {
 				defer wg.Done()
-				refMap, refErr = readMergedBundle(ctx, refStore, filename, startBlock, stopBlock, sanitizeRef)
+				refMap, refErr = readMergedBundle(ctx, refStore, filename, startBlock, stopBlock, sanitizeRef, ignoreNonDet)
 			}()
 			go func() {
 				defer wg.Done()
@@ -158,7 +167,7 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 					curMap = map[uint64]*pbbstream.Block{}
 					return
 				}
-				curMap, curErr = readMergedBundle(ctx, curStore, filename, startBlock, stopBlock, sanitizeCur)
+				curMap, curErr = readMergedBundle(ctx, curStore, filename, startBlock, stopBlock, sanitizeCur, ignoreNonDet)
 			}()
 			wg.Wait()
 			if refErr != nil {
@@ -231,7 +240,7 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 				}
 				logger.Debug("current-only bundle", zap.String("file", filename), zap.Uint64("file_start", fileStart))
 
-				curMap, err := readMergedBundle(ctx, curStore, filename, startBlock, stopBlock, sanitizeCur)
+				curMap, err := readMergedBundle(ctx, curStore, filename, startBlock, stopBlock, sanitizeCur, ignoreNonDet)
 				if err != nil {
 					return fmt.Errorf("reading current-only bundle %s: %w", filename, err)
 				}
@@ -275,7 +284,7 @@ func sanitizeNote(on bool) string {
 // dropped. When sanitize is true, broken Hash / PreviousLedgerHash are
 // recovered and bstream Id/ParentId rewritten before the block lands
 // in the map.
-func readMergedBundle(ctx context.Context, store dstore.Store, filename string, startBlock, stopBlock uint64, sanitize bool) (map[uint64]*pbbstream.Block, error) {
+func readMergedBundle(ctx context.Context, store dstore.Store, filename string, startBlock, stopBlock uint64, sanitize, stripNonDet bool) (map[uint64]*pbbstream.Block, error) {
 	reader, err := store.OpenObject(ctx, filename)
 	if err != nil {
 		return nil, fmt.Errorf("opening %s: %w", filename, err)
@@ -302,6 +311,11 @@ func readMergedBundle(ctx context.Context, store dstore.Store, filename string, 
 		if sanitize {
 			if err := sanitizeBlockInPlace(blk); err != nil {
 				return nil, fmt.Errorf("sanitizing block %d in %s: %w", blk.Number, filename, err)
+			}
+		}
+		if stripNonDet {
+			if err := stripNonDeterministicInPlace(blk); err != nil {
+				return nil, fmt.Errorf("stripping non-deterministic events from block %d in %s: %w", blk.Number, filename, err)
 			}
 		}
 		out[blk.Number] = blk
@@ -336,6 +350,46 @@ func sanitizeBlockInPlace(blk *pbbstream.Block) error {
 
 	blk.Id = hex.EncodeToString(recoveredHash)
 	blk.ParentId = hex.EncodeToString(recoveredPrev)
+
+	newPayload, err := anypb.New(&stellarBlk)
+	if err != nil {
+		return fmt.Errorf("re-marshalling stellar payload: %w", err)
+	}
+	blk.Payload = newPayload
+	return nil
+}
+
+// stripNonDeterministicInPlace removes diagnostic events whose values
+// vary across fetcher implementations (currently
+// core_metrics.invoke_time_nsecs — wall-clock invocation duration)
+// from the in-memory block, then re-marshals the payload so subsequent
+// UnmarshalTo calls see the filtered version. Stored data on disk is
+// left untouched.
+func stripNonDeterministicInPlace(blk *pbbstream.Block) error {
+	var stellarBlk pbstellar.Block
+	if err := blk.Payload.UnmarshalTo(&stellarBlk); err != nil {
+		return fmt.Errorf("unmarshalling payload: %w", err)
+	}
+
+	mutated := false
+	for _, tx := range stellarBlk.Transactions {
+		if tx.Events == nil || len(tx.Events.DiagnosticEventsXdr) == 0 {
+			continue
+		}
+		filtered := tx.Events.DiagnosticEventsXdr[:0]
+		for _, raw := range tx.Events.DiagnosticEventsXdr {
+			if utils.IsNonDeterministicDiagnosticEventBytes(raw) {
+				mutated = true
+				continue
+			}
+			filtered = append(filtered, raw)
+		}
+		tx.Events.DiagnosticEventsXdr = filtered
+	}
+
+	if !mutated {
+		return nil
+	}
 
 	newPayload, err := anypb.New(&stellarBlk)
 	if err != nil {
@@ -450,6 +504,50 @@ func compareTransactionSlices(ref, cur []*pbstellar.Transaction) []string {
 			}
 			if !proto.Equal(refTx.Events, curTx.Events) {
 				diffs = append(diffs, fmt.Sprintf("tx %s (index %d): Events differ", h, refIdx[h]))
+				if refTx.Events == nil || curTx.Events == nil {
+					diffs = append(diffs, fmt.Sprintf("  tx %s: one side has nil Events (ref nil=%v cur nil=%v)", h, refTx.Events == nil, curTx.Events == nil))
+				} else {
+					rTE, cTE := len(refTx.Events.TransactionEventsXdr), len(curTx.Events.TransactionEventsXdr)
+					rDE, cDE := len(refTx.Events.DiagnosticEventsXdr), len(curTx.Events.DiagnosticEventsXdr)
+					rCE, cCE := len(refTx.Events.ContractEventsXdr), len(curTx.Events.ContractEventsXdr)
+					if rTE != cTE {
+						diffs = append(diffs, fmt.Sprintf("  tx %s: TransactionEventsXdr count %d vs %d", h, rTE, cTE))
+					} else {
+						for i := 0; i < rTE; i++ {
+							if !bytesEq(refTx.Events.TransactionEventsXdr[i], curTx.Events.TransactionEventsXdr[i]) {
+								diffs = append(diffs, fmt.Sprintf("  tx %s: TransactionEventsXdr[%d] differs (ref %d B / cur %d B)", h, i, len(refTx.Events.TransactionEventsXdr[i]), len(curTx.Events.TransactionEventsXdr[i])))
+							}
+						}
+					}
+					if rDE != cDE {
+						diffs = append(diffs, fmt.Sprintf("  tx %s: DiagnosticEventsXdr count %d vs %d", h, rDE, cDE))
+					} else {
+						for i := 0; i < rDE; i++ {
+							if !bytesEq(refTx.Events.DiagnosticEventsXdr[i], curTx.Events.DiagnosticEventsXdr[i]) {
+								diffs = append(diffs, fmt.Sprintf("  tx %s: DiagnosticEventsXdr[%d] differs (ref %d B / cur %d B)", h, i, len(refTx.Events.DiagnosticEventsXdr[i]), len(curTx.Events.DiagnosticEventsXdr[i])))
+								diffs = append(diffs, fmt.Sprintf("    ref hex: %x", refTx.Events.DiagnosticEventsXdr[i]))
+								diffs = append(diffs, fmt.Sprintf("    cur hex: %x", curTx.Events.DiagnosticEventsXdr[i]))
+							}
+						}
+					}
+					if rCE != cCE {
+						diffs = append(diffs, fmt.Sprintf("  tx %s: ContractEventsXdr group count %d vs %d", h, rCE, cCE))
+					} else {
+						for i := 0; i < rCE; i++ {
+							ri := refTx.Events.ContractEventsXdr[i]
+							ci := curTx.Events.ContractEventsXdr[i]
+							if len(ri.Events) != len(ci.Events) {
+								diffs = append(diffs, fmt.Sprintf("  tx %s: ContractEventsXdr[%d].Events count %d vs %d", h, i, len(ri.Events), len(ci.Events)))
+								continue
+							}
+							for j := 0; j < len(ri.Events); j++ {
+								if !bytesEq(ri.Events[j], ci.Events[j]) {
+									diffs = append(diffs, fmt.Sprintf("  tx %s: ContractEventsXdr[%d].Events[%d] differs (ref %d B / cur %d B)", h, i, j, len(ri.Events[j]), len(ci.Events[j])))
+								}
+							}
+						}
+					}
+				}
 			}
 		}
 	}
@@ -478,6 +576,117 @@ func printJSONDiff(blockNum uint64, ref, cur *pbstellar.Block) {
 	}
 	fmt.Printf("    --- reference (block %d) ---\n%s\n", blockNum, string(refJSON))
 	fmt.Printf("    --- current (block %d) ---\n%s\n", blockNum, string(curJSON))
+}
+
+// runOneblockCompare is a test-only path: reads per-block dbin files
+// from both stores into in-memory maps, then runs the same
+// compareSingleBlock used by the merged-bundle path.
+func runOneblockCompare(ctx context.Context, refStore, curStore dstore.Store, startBlock, stopBlock uint64, sanitizeRef, sanitizeCur, stripNonDet, showDiff, stopOnFirstDiff bool) error {
+	refMap, err := loadOneblockRange(ctx, refStore, startBlock, stopBlock, sanitizeRef, stripNonDet)
+	if err != nil {
+		return fmt.Errorf("loading reference oneblocks: %w", err)
+	}
+	curMap, err := loadOneblockRange(ctx, curStore, startBlock, stopBlock, sanitizeCur, stripNonDet)
+	if err != nil {
+		return fmt.Errorf("loading current oneblocks: %w", err)
+	}
+
+	var totalCompared, totalDifferent, totalMissingInCur, totalMissingInRef int
+
+	for n := startBlock; n < stopBlock; n++ {
+		refBlk, refOK := refMap[n]
+		curBlk, curOK := curMap[n]
+		switch {
+		case !refOK && !curOK:
+			continue
+		case !refOK:
+			totalMissingInRef++
+			fmt.Printf("- Block %d missing in reference (present in current)\n", n)
+			if stopOnFirstDiff {
+				goto done
+			}
+		case !curOK:
+			totalMissingInCur++
+			fmt.Printf("- Block %d missing in current (present in reference)\n", n)
+			if stopOnFirstDiff {
+				goto done
+			}
+		default:
+			totalCompared++
+			diffs, refS, curS := compareSingleBlock(refBlk, curBlk)
+			if len(diffs) == 0 {
+				continue
+			}
+			totalDifferent++
+			shortRef := refBlk.Id
+			if len(shortRef) > 12 {
+				shortRef = shortRef[:12] + "..."
+			}
+			fmt.Printf("- Block %d differs (ref id=%s): %d field(s)\n", n, shortRef, len(diffs))
+			for _, d := range diffs {
+				fmt.Printf("    · %s\n", d)
+			}
+			if showDiff {
+				printJSONDiff(n, refS, curS)
+			}
+			if stopOnFirstDiff {
+				goto done
+			}
+		}
+	}
+done:
+	fmt.Println()
+	fmt.Printf("Summary: %d compared, %d different, %d missing in current, %d missing in reference\n",
+		totalCompared, totalDifferent, totalMissingInCur, totalMissingInRef)
+	if totalDifferent == 0 && totalMissingInCur == 0 && totalMissingInRef == 0 {
+		fmt.Println("✅ Block ranges match.")
+	}
+	return nil
+}
+
+func loadOneblockRange(ctx context.Context, store dstore.Store, start, stop uint64, sanitize, stripNonDet bool) (map[uint64]*pbbstream.Block, error) {
+	out := make(map[uint64]*pbbstream.Block)
+	err := store.Walk(ctx, "", func(filename string) error {
+		if len(filename) < 10 {
+			return nil
+		}
+		n, err := strconv.ParseUint(filename[:10], 10, 64)
+		if err != nil {
+			return nil
+		}
+		if n < start {
+			return nil
+		}
+		if n >= stop {
+			return dstore.StopIteration
+		}
+		reader, err := store.OpenObject(ctx, filename)
+		if err != nil {
+			return fmt.Errorf("open %s: %w", filename, err)
+		}
+		defer reader.Close()
+		br, err := bstream.NewDBinBlockReader(reader)
+		if err != nil {
+			return fmt.Errorf("reader %s: %w", filename, err)
+		}
+		blk, err := br.Read()
+		if err != nil {
+			return fmt.Errorf("read %s: %w", filename, err)
+		}
+		if sanitize {
+			if err := sanitizeBlockInPlace(blk); err != nil {
+				return fmt.Errorf("sanitize block %d: %w", n, err)
+			}
+		}
+		if stripNonDet {
+			if err := stripNonDeterministicInPlace(blk); err != nil {
+				return fmt.Errorf("strip non-deterministic events from block %d: %w", n, err)
+			}
+		}
+		out[n] = blk
+		return nil
+	})
+	return out, err
 }
 
 func bytesEq(a, b []byte) bool {
