@@ -14,6 +14,7 @@
 package snapshot
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"os"
@@ -42,7 +43,12 @@ func Load(path string) (*Snapshot, error) {
 		}
 		return nil, fmt.Errorf("read snapshot %s: %w", path, err)
 	}
-	if err := json.Unmarshal(blob, &s.Expected); err != nil {
+	// UseNumber so large integers in the snapshot file (sequence numbers,
+	// stroop amounts) keep their precision instead of being decoded as
+	// float64 — matches how `normalize` decodes the actual side.
+	dec := json.NewDecoder(bytes.NewReader(blob))
+	dec.UseNumber()
+	if err := dec.Decode(&s.Expected); err != nil {
 		return nil, fmt.Errorf("parse snapshot %s: %w", path, err)
 	}
 	return s, nil
@@ -106,8 +112,13 @@ func (s *Snapshot) normalize(v any) any {
 	if err != nil {
 		return v
 	}
+	// UseNumber so large integers survive the JSON round-trip as
+	// json.Number; otherwise Stellar sequence numbers / stroop amounts
+	// > 2^53 lose precision and snapshot diffs silently mis-compare.
+	dec := json.NewDecoder(bytes.NewReader(blob))
+	dec.UseNumber()
 	var copy any
-	if err := json.Unmarshal(blob, &copy); err != nil {
+	if err := dec.Decode(&copy); err != nil {
 		return v
 	}
 	reps := sortedReplacements(s.bindings)

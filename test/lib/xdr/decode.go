@@ -5,6 +5,7 @@
 package xdr
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 
@@ -104,7 +105,11 @@ func decodeDiagnosticEvents(blobs [][]byte) []any {
 			out = append(out, map[string]any{"_decodeError": err.Error()})
 			continue
 		}
-		v, _ := roundtrip(ev)
+		v, err := roundtrip(ev)
+		if err != nil {
+			out = append(out, map[string]any{"_decodeError": err.Error()})
+			continue
+		}
 		out = append(out, v)
 	}
 	return out
@@ -121,7 +126,11 @@ func decodeTxEvents(blobs [][]byte) []any {
 			out = append(out, map[string]any{"_decodeError": err.Error()})
 			continue
 		}
-		v, _ := roundtrip(ev)
+		v, err := roundtrip(ev)
+		if err != nil {
+			out = append(out, map[string]any{"_decodeError": err.Error()})
+			continue
+		}
 		out = append(out, v)
 	}
 	return out
@@ -137,7 +146,11 @@ func decodeContractEvents(groups []*pbstellar.ContractEvent) []any {
 				perOp = append(perOp, map[string]any{"_decodeError": err.Error()})
 				continue
 			}
-			v, _ := roundtrip(ev)
+			v, err := roundtrip(ev)
+			if err != nil {
+				perOp = append(perOp, map[string]any{"_decodeError": err.Error()})
+				continue
+			}
 			perOp = append(perOp, v)
 		}
 		if perOp != nil {
@@ -177,8 +190,13 @@ func roundtrip(v any) (map[string]any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// UseNumber so large int64/uint64 values (sequence numbers, stroop
+	// amounts > 2^53) survive the round-trip as json.Number instead of
+	// being silently coerced to float64.
+	dec := json.NewDecoder(bytes.NewReader(blob))
+	dec.UseNumber()
 	var out map[string]any
-	if err := json.Unmarshal(blob, &out); err != nil {
+	if err := dec.Decode(&out); err != nil {
 		return nil, err
 	}
 	normalizeAccountIDs(out)

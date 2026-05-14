@@ -1,6 +1,7 @@
 package snapshot
 
 import (
+	"bytes"
 	"encoding/json"
 	"fmt"
 	"strings"
@@ -34,8 +35,14 @@ func toGeneric(v any) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	// UseNumber so large integers survive as json.Number instead of
+	// being coerced to float64. Without this, backend diffs above 2^53
+	// (Stellar stroop amounts, sequence numbers) silently compare equal
+	// even when the underlying ints differ.
+	dec := json.NewDecoder(bytes.NewReader(blob))
+	dec.UseNumber()
 	var out any
-	if err := json.Unmarshal(blob, &out); err != nil {
+	if err := dec.Decode(&out); err != nil {
 		return nil, err
 	}
 	return out, nil
