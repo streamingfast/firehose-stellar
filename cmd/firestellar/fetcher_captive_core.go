@@ -15,6 +15,7 @@ import (
 	firecore "github.com/streamingfast/firehose-core"
 	"github.com/streamingfast/firehose-core/blockpoller"
 	"github.com/streamingfast/firehose-stellar/captivecore"
+	"github.com/streamingfast/firehose-stellar/cursor"
 	"github.com/streamingfast/logging"
 	"go.uber.org/zap"
 )
@@ -33,6 +34,8 @@ func NewFetchCaptiveCoreCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Co
 	cmd.Flags().String("stellar-core-network-passphrase", "", "override network passphrase (required for custom; overrides the value derived from --stellar-core-network when set)")
 	cmd.Flags().StringSlice("stellar-core-history-archive-urls", nil, "override history archive URLs (required for custom; overrides the values derived from --stellar-core-network when set)")
 	cmd.Flags().String("stellar-core-log-level", "info", "log level for stellar-core subprocess (debug, info, warn, error)")
+	cmd.Flags().String("state-dir", "/data/captive-core", "directory used to persist the last-fired block (cursor.json) so restarts resume where they stopped")
+	cmd.Flags().Bool("ignore-cursor", false, "ignore any persisted cursor.json and start from <first-streamable-block>")
 
 	return cmd
 }
@@ -84,12 +87,38 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, _ logging.Tracer) firecore.Command
 		handler := blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block")
 		handler.Init()
 
+		stateDir := sflags.MustGetString(cmd, "state-dir")
+		ignoreCursor := sflags.MustGetBool(cmd, "ignore-cursor")
+
+		seq := startBlock
+		if !ignoreCursor {
+			persisted, err := cursor.Load(stateDir)
+			if err != nil {
+				return fmt.Errorf("loading cursor: %w", err)
+			}
+			if persisted != nil {
+				resumeFrom := persisted.LastFiredBlock.Num + 1
+				if resumeFrom > startBlock {
+					seq = resumeFrom
+					logger.Info("resuming from persisted cursor",
+						zap.String("state_dir", stateDir),
+						zap.Uint64("last_fired_block", persisted.LastFiredBlock.Num),
+						zap.Uint64("resume_block", seq),
+					)
+				} else {
+					logger.Info("persisted cursor is below first streamable block, ignoring",
+						zap.Uint64("last_fired_block", persisted.LastFiredBlock.Num),
+						zap.Uint64("first_streamable_block", startBlock),
+					)
+				}
+			}
+		}
+
 		ctx := cmd.Context()
-		if err := backend.PrepareRange(ctx, startBlock); err != nil {
+		if err := backend.PrepareRange(ctx, seq); err != nil {
 			return err
 		}
 
-		seq := startBlock
 		for {
 			if err := ctx.Err(); err != nil {
 				return err
@@ -103,6 +132,10 @@ func fetchCaptiveCoreRunE(logger *zap.Logger, _ logging.Tracer) firecore.Command
 			logger.Info("processing block", zap.Uint64("seq", seq), zap.String("hash", blk.Id))
 			if err := handler.Handle(blk); err != nil {
 				return fmt.Errorf("handling block %d: %w", blk.Number, err)
+			}
+
+			if err := cursor.Save(stateDir, blk); err != nil {
+				return fmt.Errorf("saving cursor at block %d: %w", blk.Number, err)
 			}
 
 			seq++
