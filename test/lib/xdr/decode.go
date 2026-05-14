@@ -217,11 +217,14 @@ func stripNulls(v any) {
 //   - BumpSequenceOp.BumpTo (uint64)           → "$bumpTo"
 //   - InnerResultPair.TransactionHash ([32]B)  → "$innerTransactionHash"
 //
-// Tests submit a fresh transaction every run with new keypairs and the
-// horizon-assigned next-sequence-number for that account, so these
-// values are inherently per-run noise. The contract IDs of Stellar Asset
-// Contracts (SACs) are deterministic given the issuer keypair, but the
-// issuer is fresh every run, so the resulting SAC ID also varies.
+// Tests submit a fresh transaction every run; the horizon-assigned
+// next-sequence-number for that account is inherently per-run noise.
+// Keypairs are deterministic when runner.Config.AccountSeedScope is set
+// (the default in the suite, scoped to t.Name()), so account addresses
+// and SAC contract IDs derived from them are byte-stable across runs.
+// When AccountSeedScope is empty, keypairs are random and those derived
+// values vary per run — only the placeholder-protected fields above
+// stay stable in either mode.
 //
 // We test that the field is *present and well-shaped*, not that the
 // bytes match across runs — backend equivalence at the byte level is

@@ -98,7 +98,7 @@ func runFixBlockHashesE(logger *zap.Logger) func(cmd *cobra.Command, args []stri
 
 		walkErr := srcStore.Walk(ctx, check.WalkBlockPrefix(blockRange, 100), func(filename string) error {
 			fileStart := firecore.MustParseUint64(filename)
-			if fileStart > stopBlock {
+			if fileStart >= stopBlock {
 				return dstore.StopIteration
 			}
 			if fileStart+100 <= startBlock {
@@ -130,7 +130,7 @@ func runFixBlockHashesE(logger *zap.Logger) func(cmd *cobra.Command, args []stri
 				if blk.Number < startBlock {
 					continue
 				}
-				if blk.Number > stopBlock {
+				if blk.Number >= stopBlock {
 					break
 				}
 

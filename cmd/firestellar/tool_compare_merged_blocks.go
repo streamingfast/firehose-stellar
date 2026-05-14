@@ -127,6 +127,7 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 			if fileStart+mergedBundleSize <= startBlock {
 				return nil
 			}
+			logger.Debug("comparing bundle", zap.String("file", filename), zap.Uint64("file_start", fileStart))
 
 			var (
 				wg      sync.WaitGroup
@@ -211,8 +212,6 @@ func runCompareMergedBlocksE(logger *zap.Logger) func(cmd *cobra.Command, args [
 			fmt.Println("✅ Block ranges match.")
 		}
 
-		// Silence unused-import warning when logger has no call sites yet.
-		_ = logger
 		return nil
 	}
 }
