@@ -271,24 +271,53 @@ func normalizeDynamicFields(v any) {
 	}
 }
 
+// numericByte extracts a byte value from a JSON-decoded numeric. Real
+// decoded payloads use json.Number (roundtrip enables UseNumber so
+// integer precision survives), but the helper still accepts float64
+// for hand-built test fixtures and other callers that pre-date the
+// json.Number switch.
+func numericByte(v any) (byte, bool) {
+	switch n := v.(type) {
+	case json.Number:
+		i, err := n.Int64()
+		if err != nil {
+			return 0, false
+		}
+		return byte(i), true
+	case float64:
+		return byte(n), true
+	}
+	return 0, false
+}
+
+// isNumericValue reports whether v is one of the JSON numeric shapes
+// (json.Number from UseNumber decoding, or float64 from a fixture).
+func isNumericValue(v any) bool {
+	switch v.(type) {
+	case json.Number, float64:
+		return true
+	}
+	return false
+}
+
 // dynamicFieldPlaceholder maps a (key, value) pair to its placeholder
 // string if it's one of the known per-run-varying fields. Returns
 // ("", false) otherwise.
 func dynamicFieldPlaceholder(key string, val any) (string, bool) {
 	switch key {
 	case "SeqNum":
-		if _, ok := val.(float64); ok {
+		if isNumericValue(val) {
 			return "$seqNum", true
 		}
 	case "BumpTo":
-		if _, ok := val.(float64); ok {
+		if isNumericValue(val) {
 			return "$bumpTo", true
 		}
 	case "OfferId":
 		// OfferId is a per-network monotonic counter assigned when a
 		// ManageSellOffer/ManageBuyOffer creates a new offer. Stable
 		// within a run, varies across runs.
-		if _, ok := val.(float64); ok {
+		if isNumericValue(val) {
 			return "$offerId", true
 		}
 	case "TransactionHash":
@@ -318,7 +347,7 @@ func isThirtyTwoByteArray(v any) bool {
 		return false
 	}
 	for _, b := range arr {
-		if _, ok := b.(float64); !ok {
+		if !isNumericValue(b) {
 			return false
 		}
 	}
@@ -336,7 +365,11 @@ func tryEncodeStrkey(v any, version strkey.VersionByte) (string, bool) {
 	arr := v.([]any)
 	bytes := make([]byte, 32)
 	for i, b := range arr {
-		bytes[i] = byte(b.(float64))
+		bb, ok := numericByte(b)
+		if !ok {
+			return "", false
+		}
+		bytes[i] = bb
 	}
 	encoded, err := strkey.Encode(version, bytes)
 	if err != nil {
@@ -426,8 +459,8 @@ func tryEncodeAccountID(v any) (string, bool) {
 		case "Ed25519":
 			continue
 		case "Type":
-			num, ok := val.(float64)
-			if !ok || num != 0 {
+			b, ok := numericByte(val)
+			if !ok || b != 0 {
 				return "", false
 			}
 		default:
@@ -441,11 +474,11 @@ func tryEncodeAccountID(v any) (string, bool) {
 	}
 	bytes := make([]byte, 32)
 	for i, b := range raw {
-		num, ok := b.(float64)
+		bb, ok := numericByte(b)
 		if !ok {
 			return "", false
 		}
-		bytes[i] = byte(num)
+		bytes[i] = bb
 	}
 	encoded, err := strkey.Encode(strkey.VersionByteAccountID, bytes)
 	if err != nil {

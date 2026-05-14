@@ -2,19 +2,21 @@ package xdr
 
 import (
 	"encoding/json"
+	"strconv"
 	"testing"
 )
 
 func TestNormalizeAccountIDs(t *testing.T) {
 	// Synthesize a tree containing every shape we expect in real
 	// xdr-encoded JSON and verify each gets collapsed to a strkey string
-	// (or correctly skipped).
+	// (or correctly skipped). Numbers use json.Number to match what
+	// roundtrip() produces at runtime (UseNumber-enabled decoder).
 	src := map[string]any{
 		"envelope": map[string]any{
 			// Shape A: MuxedAccount with explicit Type discriminator. This
 			// is what xdr.MuxedAccount marshals as via Go's json package.
 			"SourceAccount": map[string]any{
-				"Type":    float64(0),
+				"Type":    json.Number("0"),
 				"Ed25519": jsonNumberSlice(make32Bytes(0x42)),
 			},
 			"Other": "ignored",
@@ -33,7 +35,7 @@ func TestNormalizeAccountIDs(t *testing.T) {
 		// means a different discriminator (e.g. SignerKey HashX), so we
 		// must NOT collapse it.
 		"signerKey": map[string]any{
-			"Type":    float64(2),
+			"Type":    json.Number("2"),
 			"Ed25519": jsonNumberSlice(make32Bytes(0x99)),
 		},
 		// Shape D: 64-byte ed25519 (signature, not pubkey) — must remain.
@@ -43,7 +45,7 @@ func TestNormalizeAccountIDs(t *testing.T) {
 		// Shape E: explicit-null sibling fields (Go json renders nil
 		// pointers as null), with Type=0 — should still collapse.
 		"muxedAccountWithNullSiblings": map[string]any{
-			"Type":     float64(0),
+			"Type":     json.Number("0"),
 			"Ed25519":  jsonNumberSlice(make32Bytes(0x55)),
 			"Med25519": nil,
 		},
@@ -94,20 +96,17 @@ func make32Bytes(b byte) []byte {
 	return out
 }
 
-// jsonNumberSlice produces `[]any{float64, float64, …}` — the same
-// shape the runtime walker sees after json.Unmarshal of an xdr Uint256
-// (which is a fixed [32]byte array, marshaled by Go as a JSON number
-// array, not as base64 like a []byte slice would be).
+// jsonNumberSlice produces `[]any{json.Number, json.Number, …}` — the
+// exact shape the runtime walker sees after roundtrip()'s UseNumber
+// decode of an xdr Uint256 (a fixed [32]byte array, marshaled by Go as
+// a JSON number array, not as base64 like a []byte slice would be).
 func jsonNumberSlice(b []byte) []any {
 	out := make([]any, len(b))
 	for i, v := range b {
-		out[i] = float64(v)
+		out[i] = json.Number(strconv.Itoa(int(v)))
 	}
 	return out
 }
-
-// import json so the package compiles even if the helper changes.
-var _ = json.Marshal
 
 // TestNormalizeDynamicFields covers the per-run-varying fields that
 // normalizeDynamicFields rewrites to placeholder strings.
@@ -115,14 +114,16 @@ func TestNormalizeDynamicFields(t *testing.T) {
 	src := map[string]any{
 		"V1": map[string]any{
 			"Tx": map[string]any{
-				// SeqNum gets replaced.
-				"SeqNum": float64(123456789),
+				// SeqNum gets replaced. json.Number mirrors the runtime
+				// UseNumber decode and exercises numbers above 2^53 that
+				// would lose precision as float64.
+				"SeqNum": json.Number("9007199254740993"),
 				"Operations": []any{
 					map[string]any{
 						"Body": map[string]any{
 							// BumpTo gets replaced.
 							"BumpSequenceOp": map[string]any{
-								"BumpTo": float64(999),
+								"BumpTo": json.Number("999"),
 							},
 						},
 					},

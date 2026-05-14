@@ -25,6 +25,11 @@ type BlockRefWithPrev struct {
 	PrevBlockId string `json:"previous_ref_id"`
 }
 
+// State is the on-disk cursor schema. The outer fields intentionally
+// carry no JSON tags so they serialize as Lib / LastFiredBlock / Blocks,
+// matching firehose-core/blockpoller's unexported stateFile struct
+// byte-for-byte. Adding snake_case tags here would silently break the
+// shared --state-dir compatibility we advertise in the README.
 type State struct {
 	Lib            BlockRef
 	LastFiredBlock BlockRefWithPrev
