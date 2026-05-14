@@ -68,11 +68,12 @@ If `stellar-core` is not on `$PATH`, the captive-core fetcher silently disables 
 - `docker` + `docker compose` plugin (for quickstart)
 - `go` 1.26+
 - `stellar-core` binary on `$PATH` (for captive-core in-process fetcher)
-  - macOS: `brew install stellar/sdf/stellar-core`
-  - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org)
+  - Required minimum: **`26.1.0-3210.427aa3978`** (SDF May 2026 critical security advisory)
+  - macOS: `brew upgrade stellar/sdf/stellar-core` (or `brew install` for first-time)
+  - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org); run `apt update && apt install --only-upgrade stellar-core` on existing hosts to pick up the patched build
   - Override location via `STELLAR_CORE_BIN=/path/to/stellar-core`
 
-The stellar-core version must be protocol-compatible with the quickstart image — same major version is the safest match.
+The stellar-core version must be protocol-compatible with the quickstart image — same major version is the safest match. The compose stack pulls `stellar/quickstart:testing` with `pull_policy: always` (override via `QUICKSTART_PULL_POLICY=missing`) so the bundled stellar-core stays current with SDF's patched release.
 
 ## Snapshot regen + determinism
 
