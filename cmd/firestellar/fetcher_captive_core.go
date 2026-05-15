@@ -34,7 +34,7 @@ func NewFetchCaptiveCoreCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Co
 	cmd.Flags().String("stellar-core-network-passphrase", "", "override network passphrase (required for custom; overrides the value derived from --stellar-core-network when set)")
 	cmd.Flags().StringSlice("stellar-core-history-archive-urls", nil, "override history archive URLs (required for custom; overrides the values derived from --stellar-core-network when set)")
 	cmd.Flags().String("stellar-core-log-level", "info", "log level for stellar-core subprocess (debug, info, warn, error)")
-	cmd.Flags().String("state-dir", "/data/captive-core", "directory used to persist the last-fired block (cursor.json) so restarts resume where they stopped")
+	cmd.Flags().String("state-dir", "/data/work", "directory used to persist the last-fired block (cursor.json) so restarts resume where they stopped")
 	cmd.Flags().Bool("ignore-cursor", false, "ignore any persisted cursor.json and start from <first-streamable-block>")
 
 	return cmd

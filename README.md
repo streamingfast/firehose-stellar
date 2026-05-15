@@ -15,15 +15,9 @@ Quick start with Firehose for Stellar can be found in the official Firehose docs
 
 Two fetcher backends are available. Both emit the same `pbbstream.Block` shape; check `proto/sf/stellar/type/v1/block.proto` for the payload schema.
 
-### RPC backend
+> **Captive-core is the supported backend going forward.** The RPC poller is kept for compatibility but is no longer actively developed — new deployments should use captive-core.
 
-Streams ledgers from a Stellar RPC endpoint.
-
-```bash
-firestellar fetch rpc {FIRST_STREAMABLE_BLOCK} --endpoints {STELLAR_RPC_ENDPOINT} --state-dir {STATE_DIR}
-```
-
-### Captive-core backend
+### Captive-core backend (recommended)
 
 Spawns a `stellar-core` subprocess and streams ledgers from it.
 
@@ -34,11 +28,19 @@ firestellar fetch captive-core {FIRST_STREAMABLE_BLOCK} \
   --state-dir {STATE_DIR}
 ```
 
+### RPC backend (legacy)
+
+Streams ledgers from a Stellar RPC endpoint. Maintenance-only — prefer captive-core for new work.
+
+```bash
+firestellar fetch rpc {FIRST_STREAMABLE_BLOCK} --endpoints {STELLAR_RPC_ENDPOINT} --state-dir {STATE_DIR}
+```
+
 ### Resume behavior (`--state-dir` / `--ignore-cursor`)
 
 Both backends persist the last fired block to `{STATE_DIR}/cursor.json` after each successful emission. On restart, the fetcher resumes at `last_fired_block + 1` instead of replaying from `{FIRST_STREAMABLE_BLOCK}`.
 
-- `--state-dir` — directory holding `cursor.json`. Defaults: `/data/poller` (rpc), `/data/captive-core` (captive-core). Pass an empty string to disable persistence.
+- `--state-dir` — directory holding `cursor.json`. Default: `/data/work` (both backends). Pass an empty string to disable persistence.
 - `--ignore-cursor` — ignore any persisted `cursor.json` and start fresh from `{FIRST_STREAMABLE_BLOCK}`. Use this when running under a supervisor (e.g. `firecore reader-node`) that already tracks downstream state and passes the correct start block on restart.
 
 The cursor schema is shared between the two backends, so a single state directory can be reused if you switch backends.

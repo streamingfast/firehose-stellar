@@ -2,21 +2,23 @@
 
 Drives end-to-end scenarios against firestellar's two fetcher backends and asserts the structural transaction view against committed snapshots.
 
+> Captive-core is the supported backend going forward; the RPC poller is kept here for cross-backend regression checks only and is no longer actively developed.
+
 ## Architecture
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
 │ go test ./test/scenarios/...                                │
 │                                                             │
-│  ┌────────────────────────┐    ┌────────────────────────────┐
-│  │ InProcessRPCFetcher    │    │ InProcessCaptiveCoreFetcher │
-│  │  → rpc.Fetcher (lib)   │    │  → captivecore.Backend (lib)│
-│  └─────────────┬──────────┘    └─────────────┬──────────────┘
-│                │                              │
-└────────────────┼──────────────────────────────┼─────────────┘
-                 │ HTTP                         │ peer + history
-                 │ :8000/soroban/rpc            │ :11625, :1570
-                 ▼                              ▼
+│  ┌─────────────────────────────┐    ┌────────────────────────┐
+│  │ InProcessCaptiveCoreFetcher │    │ InProcessRPCFetcher    │
+│  │  → captivecore.Backend (lib)│    │  → rpc.Fetcher (lib)   │
+│  └─────────────┬───────────────┘    └─────────────┬──────────┘
+│                │                                   │
+└────────────────┼───────────────────────────────────┼────────┘
+                 │ peer + history                    │ HTTP
+                 │ :11625, :1570                     │ :8000/soroban/rpc
+                 ▼                                   ▼
         ┌────────────────────────────────────────────────────┐
         │ stellar/quickstart container (the chain)           │
         │   - stellar-core validator                         │
@@ -59,9 +61,9 @@ tail -f test/.data/compose.log      # docker compose output (quickstart up/down)
 
 ### Cross-backend signal
 
-Default fetcher set is `{poller, captive-core}` — both run per scenario, runner diffs their views. A divergence between fetchers fails the test before snapshot comparison runs, so the error message tells you which fetcher emitted bad output.
+Default fetcher set is `{captive-core, poller}` — both run per scenario, runner diffs their views. Captive-core is the primary backend; the poller stays in the suite as a regression check. A divergence between fetchers fails the test before snapshot comparison runs, so the error message tells you which fetcher emitted bad output.
 
-If `stellar-core` is not on `$PATH`, the captive-core fetcher silently disables itself and only poller runs (cross-diff becomes a no-op; snapshot is the only assertion).
+If `stellar-core` is not on `$PATH`, the captive-core fetcher silently disables itself and only the poller runs (cross-diff becomes a no-op; snapshot is the only assertion). Install stellar-core to run the supported path.
 
 ## Prerequisites
 
@@ -161,8 +163,8 @@ Library code under `firehose-stellar/captivecore/` and `firehose-stellar/rpc/` (
 
 ## Troubleshooting
 
-- **`stellar-core: command not found`** — install via brew/apt, or set `STELLAR_CORE_BIN=/path/to/stellar-core`. The poller backend still works without it; only captive-core needs it.
+- **`stellar-core: command not found`** — install via brew/apt, or set `STELLAR_CORE_BIN=/path/to/stellar-core`. Captive-core is the supported backend, so install it for full coverage; the legacy poller still runs without it.
 - **`bind: Address already in use`** — captive-core listens on a peer port; the follower config uses `PEER_PORT=11626` to avoid colliding with quickstart's `:11625`. If you've changed quickstart's host port mapping, update the follower config.
 - **`stack didn't produce blocks`** — `docker compose -f test/scripts/dev/docker-compose.yml logs quickstart`.
-- **`fetcher disagreement for X`** — congrats, you found a real divergence between poller and captive-core. The error includes the JSON path that differs.
+- **`fetcher disagreement for X`** — congrats, you found a real divergence between captive-core and the poller. The error includes the JSON path that differs.
 - **`docker compose` plugin missing** — install Docker Desktop or the compose-plugin package.
