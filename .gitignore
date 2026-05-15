@@ -7,3 +7,12 @@ devel/data
 /firestellar
 /build
 /dist
+
+# Runtime data dirs produced by devel/poller.sh and devel/captive-core.sh
+/data
+/data-cc
+/data-cc-mainnet
+/captive-core
+
+# Tests
+test/.data

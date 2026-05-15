@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	stellarnetwork "github.com/stellar/go-stellar-sdk/network"
 	"github.com/streamingfast/bstream"
 	pbbstream "github.com/streamingfast/bstream/pb/sf/bstream/v1"
 	"github.com/streamingfast/dstore"
@@ -114,12 +115,24 @@ func runCompareFetcherBlocksE(cmd *cobra.Command, args []string) error {
 	return nil
 }
 
-func fetchBlockViaFetcher(ctx context.Context, blockNum uint64, rpcEndpoint, network string, logger *zap.Logger) (*pbbstream.Block, error) {
+func fetchBlockViaFetcher(ctx context.Context, blockNum uint64, rpcEndpoint, networkName string, logger *zap.Logger) (*pbbstream.Block, error) {
 	// Create a client
 	client := rpc.NewClient(rpcEndpoint, logger, nil)
 
+	// Resolve the network passphrase from the --network flag (was previously
+	// hardcoded to mainnet, regardless of the flag value).
+	var passphrase string
+	switch networkName {
+	case "mainnet":
+		passphrase = stellarnetwork.PublicNetworkPassphrase
+	case "testnet":
+		passphrase = stellarnetwork.TestNetworkPassphrase
+	default:
+		return nil, fmt.Errorf("unsupported network %q for compare-fetcher-blocks (want mainnet|testnet)", networkName)
+	}
+
 	// Create a Fetcher instance
-	fetcher := rpc.NewFetcher(0, time.Second, 200, true, logger)
+	fetcher := rpc.NewFetcher(0, time.Second, 200, passphrase, logger)
 
 	// Fetch the block
 	block, skipped, err := fetcher.Fetch(ctx, client, blockNum)

@@ -1,0 +1,221 @@
+{
+  "applicationOrder": 1,
+  "createdAt": "$createdAt",
+  "envelope": {
+    "Type": 2,
+    "V1": {
+      "Signatures": [
+        {
+          "Hint": "$hint",
+          "Signature": "$signature"
+        }
+      ],
+      "Tx": {
+        "Cond": {
+          "TimeBounds": {
+            "MaxTime": 0,
+            "MinTime": 0
+          },
+          "Type": 1
+        },
+        "Ext": {
+          "V": 0
+        },
+        "Fee": 200,
+        "Memo": {
+          "Type": 0
+        },
+        "Operations": [
+          {
+            "Body": {
+              "PaymentOp": {
+                "Amount": 50000000,
+                "Asset": {
+                  "Type": 0
+                },
+                "Destination": "GCUGCEXALUAFIL7WWX4MAYMH35NTWKRJA35S7XOZRMDQXSHVNAG262L6"
+              },
+              "Type": 1
+            }
+          },
+          {
+            "Body": {
+              "PaymentOp": {
+                "Amount": 70000000,
+                "Asset": {
+                  "Type": 0
+                },
+                "Destination": "GCUGCEXALUAFIL7WWX4MAYMH35NTWKRJA35S7XOZRMDQXSHVNAG262L6"
+              },
+              "Type": 1
+            }
+          }
+        ],
+        "SeqNum": "$seqNum",
+        "SourceAccount": "GDZYAQD2EJYDRBPDQ7QM66RC6LU3VDSYW2G3QEQEIRRIYT2SISWSRSFB"
+      }
+    }
+  },
+  "events": {
+    "contract": [
+      [
+        {
+          "Body": {
+            "V": 0,
+            "V0": {
+              "Data": {
+                "I128": {
+                  "Hi": 0,
+                  "Lo": 50000000
+                },
+                "Type": 10
+              },
+              "Topics": [
+                {
+                  "Sym": "transfer",
+                  "Type": 15
+                },
+                {
+                  "Address": {
+                    "AccountId": "GDZYAQD2EJYDRBPDQ7QM66RC6LU3VDSYW2G3QEQEIRRIYT2SISWSRSFB",
+                    "Type": 0
+                  },
+                  "Type": 18
+                },
+                {
+                  "Address": {
+                    "AccountId": "GCUGCEXALUAFIL7WWX4MAYMH35NTWKRJA35S7XOZRMDQXSHVNAG262L6",
+                    "Type": 0
+                  },
+                  "Type": 18
+                },
+                {
+                  "Str": "native",
+                  "Type": 14
+                }
+              ]
+            }
+          },
+          "ContractId": "CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4",
+          "Ext": {
+            "V": 0
+          },
+          "Type": 1
+        }
+      ],
+      [
+        {
+          "Body": {
+            "V": 0,
+            "V0": {
+              "Data": {
+                "I128": {
+                  "Hi": 0,
+                  "Lo": 70000000
+                },
+                "Type": 10
+              },
+              "Topics": [
+                {
+                  "Sym": "transfer",
+                  "Type": 15
+                },
+                {
+                  "Address": {
+                    "AccountId": "GDZYAQD2EJYDRBPDQ7QM66RC6LU3VDSYW2G3QEQEIRRIYT2SISWSRSFB",
+                    "Type": 0
+                  },
+                  "Type": 18
+                },
+                {
+                  "Address": {
+                    "AccountId": "GCUGCEXALUAFIL7WWX4MAYMH35NTWKRJA35S7XOZRMDQXSHVNAG262L6",
+                    "Type": 0
+                  },
+                  "Type": 18
+                },
+                {
+                  "Str": "native",
+                  "Type": 14
+                }
+              ]
+            }
+          },
+          "ContractId": "CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4",
+          "Ext": {
+            "V": 0
+          },
+          "Type": 1
+        }
+      ]
+    ],
+    "transaction": [
+      {
+        "Event": {
+          "Body": {
+            "V": 0,
+            "V0": {
+              "Data": {
+                "I128": {
+                  "Hi": 0,
+                  "Lo": 200
+                },
+                "Type": 10
+              },
+              "Topics": [
+                {
+                  "Sym": "fee",
+                  "Type": 15
+                },
+                {
+                  "Address": {
+                    "AccountId": "GDZYAQD2EJYDRBPDQ7QM66RC6LU3VDSYW2G3QEQEIRRIYT2SISWSRSFB",
+                    "Type": 0
+                  },
+                  "Type": 18
+                }
+              ]
+            }
+          },
+          "ContractId": "CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4",
+          "Ext": {
+            "V": 0
+          },
+          "Type": 1
+        },
+        "Stage": 0
+      }
+    ]
+  },
+  "hash": "$hash",
+  "result": {
+    "Ext": {
+      "V": 0
+    },
+    "FeeCharged": 200,
+    "Result": {
+      "Code": 0,
+      "Results": [
+        {
+          "Code": 0,
+          "Tr": {
+            "PaymentResult": {
+              "Code": 0
+            },
+            "Type": 1
+          }
+        },
+        {
+          "Code": 0,
+          "Tr": {
+            "PaymentResult": {
+              "Code": 0
+            },
+            "Type": 1
+          }
+        }
+      ]
+    }
+  },
+  "status": "SUCCESS"
+}
