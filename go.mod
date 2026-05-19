@@ -17,7 +17,7 @@ require (
 	github.com/streamingfast/firehose-core v1.14.4
 	github.com/streamingfast/logging v1.2.2
 	github.com/stretchr/testify v1.11.1
-	go.uber.org/zap v1.27.1
+	go.uber.org/zap v1.28.0
 	google.golang.org/protobuf v1.36.11
 )
 
