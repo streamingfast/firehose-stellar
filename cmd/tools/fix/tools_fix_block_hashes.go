@@ -37,7 +37,7 @@ const stellarHashLen = 32
 
 // NewToolsFixBlockHashesCmd builds the cobra command.
 func NewToolsFixBlockHashesCmd(logger *zap.Logger) *cobra.Command {
-	return &cobra.Command{
+	cmd := &cobra.Command{
 		Use:   "fix-block-hashes <src_merged_blocks_store> <dest_merged_blocks_store> <block_range>",
 		Short: "Recover ledger Hash and PreviousLedgerHash on v1-fetcher merged blocks by reversing the bad base64-decode-of-hex encoding.",
 		Long: `The legacy RPC fetcher decoded stellar-rpc's hex ledger hash as base64,
@@ -55,11 +55,16 @@ cross-check: the recovered hash must equal hex.Decode(src.Id), else
 the command bails on the block.
 
 The block range must start at a 100-block boundary so the destination
-bundle layout stays aligned with the rest of the store. Non-overlapping
-ranges can run in parallel — there is no shared state.`,
+bundle layout stays aligned with the rest of the store. The only
+exception is the chain's first streamable block: pass it via
+--common-first-streamable-block to allow a non-aligned start (e.g. a
+chain whose first bundle is 767..799 instead of 700..799). Non-
+overlapping ranges can run in parallel — there is no shared state.`,
 		Args: cobra.ExactArgs(3),
 		RunE: runFixBlockHashesE(logger),
 	}
+	cmd.Flags().Uint64("common-first-streamable-block", 0, "First streamable block of the chain. Allows the block range to start at this value even if it is not aligned to a 100-block bundle boundary, and propagates to bstream so the merged-blocks writer accepts the first bundle.")
+	return cmd
 }
 
 func runFixBlockHashesE(logger *zap.Logger) func(cmd *cobra.Command, args []string) error {
@@ -83,12 +88,21 @@ func runFixBlockHashesE(logger *zap.Logger) func(cmd *cobra.Command, args []stri
 		if !blockRange.IsResolved() {
 			return fmt.Errorf("block range must be closed (got %s)", blockRange.String())
 		}
-		if blockRange.Start%100 != 0 {
-			return fmt.Errorf("block range start %d is not aligned to a 100-block bundle boundary", blockRange.Start)
+
+		firstStreamableBlock, err := cmd.Flags().GetUint64("common-first-streamable-block")
+		if err != nil {
+			return fmt.Errorf("reading --common-first-streamable-block: %w", err)
 		}
+		// Propagate to bstream so MergedBlocksWriter accepts the non-aligned
+		// first bundle (e.g. starting at 767 instead of 700).
+		bstream.GetProtocolFirstStreamableBlock = firstStreamableBlock
 
 		startBlock := uint64(blockRange.Start)
 		stopBlock := blockRange.MustGetStopBlock()
+
+		if startBlock%100 != 0 && startBlock != firstStreamableBlock {
+			return fmt.Errorf("block range start %d is not aligned to a 100-block bundle boundary (pass --common-first-streamable-block=%d to allow it)", startBlock, startBlock)
+		}
 
 		mergeWriter := &firecore.MergedBlocksWriter{
 			Store:      destStore,
