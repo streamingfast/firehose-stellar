@@ -4,12 +4,13 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/hex"
+	"errors"
 	"fmt"
+	"io"
 	"strconv"
 	"time"
 
 	"github.com/stellar/go-stellar-sdk/ingest"
-	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/stellar/go-stellar-sdk/xdr"
 	pbbstream "github.com/streamingfast/bstream/pb/sf/bstream/v1"
 	"github.com/streamingfast/firehose-stellar/decoder"
@@ -37,8 +38,8 @@ type Fetcher struct {
 	decoder                  *decoder.Decoder
 	transactionFetchLimit    int
 
-	logger    *zap.Logger
-	isMainnet bool
+	logger            *zap.Logger
+	networkPassphrase string
 
 	// Statistics
 	acquisitionTimes      []time.Duration
@@ -50,7 +51,12 @@ type Fetcher struct {
 	statsTicker           *time.Ticker
 }
 
-func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transactionFetchLimit int, isMainnet bool, logger *zap.Logger) *Fetcher {
+// NewFetcher constructs an rpc fetcher. networkPassphrase MUST match the
+// passphrase the rpc endpoint serves (Public, Testnet, Standalone, etc.) —
+// the Stellar SDK uses it to recompute transaction hashes from ledger
+// metadata, so a mismatch produces "unknown tx hash in LedgerCloseMeta"
+// errors when reading transactions out of fetched ledgers.
+func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transactionFetchLimit int, networkPassphrase string, logger *zap.Logger) *Fetcher {
 	f := &Fetcher{
 		fetchInterval:            fetchInterval,
 		latestBlockRetryInterval: latestBlockRetryInterval,
@@ -58,7 +64,7 @@ func NewFetcher(fetchInterval, latestBlockRetryInterval time.Duration, transacti
 		decoder:                  decoder.NewDecoder(logger),
 		transactionFetchLimit:    transactionFetchLimit,
 		logger:                   logger,
-		isMainnet:                isMainnet,
+		networkPassphrase:        networkPassphrase,
 		acquisitionTimes:         make([]time.Duration, 0, 50),
 		conversionTimes:          make([]time.Duration, 0, 50),
 		totalTimes:               make([]time.Duration, 0, 50),
@@ -222,15 +228,14 @@ func (f *Fetcher) Fetch(ctx context.Context, client *Client, requestBlockNum uin
 		}
 	}
 
-	ledgerHashBytes, err := base64.StdEncoding.DecodeString(ledger[0].Hash)
+	// stellar-rpc returns ledger.hash as a hex string; previous_ledger_hash on
+	// the LedgerHeader is already raw 32 bytes.
+	ledgerHashBytes, err := hex.DecodeString(ledger[0].Hash)
 	if err != nil {
 		return nil, false, fmt.Errorf("decoding ledger hash: %w", err)
 	}
 
-	previousLedgerHashBytes, err := base64.StdEncoding.DecodeString(ledgerHeader.Header.PreviousLedgerHash.HexString())
-	if err != nil {
-		return nil, false, fmt.Errorf("decoding previous ledger hash: %w", err)
-	}
+	previousLedgerHashBytes := ledgerHeader.Header.PreviousLedgerHash[:]
 
 	stellarBlk := &pbstellar.Block{
 		Number: ledger[0].Sequence,
@@ -313,11 +318,7 @@ func (f *Fetcher) extractTransactionsFromLedgerMetadata(ledgerMetadata *xdr.Ledg
 	// Use the Stellar SDK's LedgerTransactionReader to extract transactions from ledger metadata
 	// This is the proper way to access transaction data from LedgerCloseMeta
 
-	passphrase := network.PublicNetworkPassphrase
-	if !f.isMainnet {
-		passphrase = network.TestNetworkPassphrase
-	}
-	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(passphrase, *ledgerMetadata)
+	reader, err := ingest.NewLedgerTransactionReaderFromLedgerCloseMeta(f.networkPassphrase, *ledgerMetadata)
 	if err != nil {
 		return nil, fmt.Errorf("failed to create ledger transaction reader: %w", err)
 	}
@@ -327,7 +328,7 @@ func (f *Fetcher) extractTransactionsFromLedgerMetadata(ledgerMetadata *xdr.Ledg
 	for {
 		tx, err := reader.Read()
 		if err != nil {
-			if err.Error() == "EOF" {
+			if errors.Is(err, io.EOF) {
 				break
 			}
 			return nil, fmt.Errorf("failed to read transaction: %w", err)
@@ -453,8 +454,11 @@ func convertBlock(stellarBlk *pbstellar.Block) (*pbbstream.Block, error) {
 		return nil, fmt.Errorf("unable to create anypb: %w", err)
 	}
 
-	stellarBlockHash := base64.StdEncoding.EncodeToString(stellarBlk.Hash)
-	previousStellarBlockHash := base64.StdEncoding.EncodeToString(stellarBlk.Header.PreviousLedgerHash)
+	// Hex-encode IDs so the strings are filesystem-safe — firecore mindreader
+	// uses Block.Id in one-block filenames and treats '/' (which appears in
+	// standard base64 of 32-byte hashes) as a path separator.
+	stellarBlockHash := hex.EncodeToString(stellarBlk.Hash)
+	previousStellarBlockHash := hex.EncodeToString(stellarBlk.Header.PreviousLedgerHash)
 
 	return &pbbstream.Block{
 		Number:    stellarBlk.Number,

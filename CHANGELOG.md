@@ -4,6 +4,19 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [MAINTAINERS.md](./MAINTAINERS.md)
 for instructions to keep up to date.
 
+## Unreleased
+
+* Add captive-core fetcher backend (`firestellar fetch captive-core`) that spawns a `stellar-core` subprocess and streams ledgers via the captive-core peer + history archive path. Captive-core is now the supported backend going forward; the RPC poller is kept for compatibility but no longer actively developed.
+* Add cursor persistence shared between both backends: `--state-dir` writes `cursor.json` after each emitted block so restarts resume at `last_fired_block + 1`. Default `--state-dir` is now `/data/work` for both backends (was `/data/poller` / `/data/captive-core`).
+* Add `--ignore-cursor` flag to start fresh from `<first-streamable-block>` when running under a supervisor that tracks downstream state (e.g. `firecore reader-node`).
+* Add `--stellar-core-network` plus `--stellar-core-network-passphrase` / `--stellar-core-history-archive-urls` for custom-network captive-core deployments.
+* Add `test/` battlefield integration suite: in-process captive-core + poller fetchers driven against `stellar/quickstart`, with deterministic snapshot comparison and cross-backend diffing.
+* Enforce `stellar-core >= 26.1.0-3210.427aa3978` (SDF May 2026 security advisory) for captive-core.
+* CI now reads the Go toolchain version from `go.mod` (`go-version-file`) instead of pinning it inside the workflow.
+* Fix poller hash / previous-hash encoding bug.
+* Fix `json.Number` handling in XDR normalizers (preserves large-int precision in snapshot/diff round-trips).
+* Restore `go-stellar-sdk` v0.5.0 and walk the current store when searching for cursor data.
+
 ## v1.0.6 
 
 * bump SDK to match rpc V26

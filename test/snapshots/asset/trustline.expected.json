@@ -1,0 +1,116 @@
+{
+  "applicationOrder": 1,
+  "createdAt": "$createdAt",
+  "envelope": {
+    "Type": 2,
+    "V1": {
+      "Signatures": [
+        {
+          "Hint": "$hint",
+          "Signature": "$signature"
+        }
+      ],
+      "Tx": {
+        "Cond": {
+          "TimeBounds": {
+            "MaxTime": 0,
+            "MinTime": 0
+          },
+          "Type": 1
+        },
+        "Ext": {
+          "V": 0
+        },
+        "Fee": 100,
+        "Memo": {
+          "Type": 0
+        },
+        "Operations": [
+          {
+            "Body": {
+              "ChangeTrustOp": {
+                "Limit": 50000000000,
+                "Line": {
+                  "AlphaNum4": {
+                    "AssetCode": [
+                      85,
+                      83,
+                      68,
+                      66
+                    ],
+                    "Issuer": "GDVFWONJRLK7XU3BWZL3CXGE5A6SZYWUJO7P34SHZSPDFZ2I4SI55AH4"
+                  },
+                  "Type": 1
+                }
+              },
+              "Type": 6
+            }
+          }
+        ],
+        "SeqNum": "$seqNum",
+        "SourceAccount": "GBOIJZ7T5MM2C46ZCEX2MPLFRQNYY64R2LYST2PQRIIE4EGMODID6Y7Y"
+      }
+    }
+  },
+  "events": {
+    "transaction": [
+      {
+        "Event": {
+          "Body": {
+            "V": 0,
+            "V0": {
+              "Data": {
+                "I128": {
+                  "Hi": 0,
+                  "Lo": 100
+                },
+                "Type": 10
+              },
+              "Topics": [
+                {
+                  "Sym": "fee",
+                  "Type": 15
+                },
+                {
+                  "Address": {
+                    "AccountId": "GBOIJZ7T5MM2C46ZCEX2MPLFRQNYY64R2LYST2PQRIIE4EGMODID6Y7Y",
+                    "Type": 0
+                  },
+                  "Type": 18
+                }
+              ]
+            }
+          },
+          "ContractId": "CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4",
+          "Ext": {
+            "V": 0
+          },
+          "Type": 1
+        },
+        "Stage": 0
+      }
+    ]
+  },
+  "hash": "$hash",
+  "result": {
+    "Ext": {
+      "V": 0
+    },
+    "FeeCharged": 100,
+    "Result": {
+      "Code": 0,
+      "Results": [
+        {
+          "Code": 0,
+          "Tr": {
+            "ChangeTrustResult": {
+              "Code": 0
+            },
+            "Type": 6
+          }
+        }
+      ]
+    }
+  },
+  "status": "SUCCESS"
+}

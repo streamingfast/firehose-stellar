@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"github.com/spf13/cobra"
+	"github.com/stellar/go-stellar-sdk/network"
 	"github.com/streamingfast/cli/sflags"
 	firecore "github.com/streamingfast/firehose-core"
 	"github.com/streamingfast/firehose-core/blockpoller"
@@ -15,26 +16,35 @@ import (
 	"go.uber.org/zap"
 )
 
-func NewFetchCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
+func NewFetchRpcCmd(logger *zap.Logger, tracer logging.Tracer) *cobra.Command {
 	cmd := &cobra.Command{
 		Use:   "rpc <first-streamable-block>",
 		Short: "fetch blocks from rpc endpoint",
 		Args:  cobra.ExactArgs(1),
-		RunE:  fetchRunE(logger, tracer),
+		RunE:  fetchRpcRunE(logger, tracer),
 	}
 
 	cmd.Flags().StringArray("endpoints", []string{}, "List of endpoints to use to fetch different method calls")
-	cmd.Flags().String("state-dir", "/data/poller", "interval between fetch")
-	cmd.Flags().Duration("interval-between-fetch", 0, "interval between fetch")
-	cmd.Flags().Duration("latest-block-retry-interval", time.Second, "interval between fetch")
+	cmd.Flags().String("state-dir", "/data/poller", "directory used to persist poller state between runs")
+	cmd.Flags().Duration("interval-between-fetch", 0, "interval between fetch attempts when the chain head has not advanced")
+	cmd.Flags().Duration("latest-block-retry-interval", time.Second, "interval to wait before retrying after a failed latest-block fetch")
 	cmd.Flags().Duration("max-block-fetch-duration", 3*time.Second, "maximum delay before considering a block fetch as failed")
 	cmd.Flags().Int("block-fetch-batch-size", 1, "Number of blocks to fetch in a single batch")
 	cmd.Flags().Int("transaction-fetch-limit", 200, "Maximum number of transactions to fetch at the same time")
-	cmd.Flags().Bool("is-mainnet", true, "This is for passphrase selection")
+	cmd.Flags().String("stellar-rpc-network", "mainnet", "stellar network the rpc endpoint serves (mainnet, testnet, or custom)")
+	cmd.Flags().String("stellar-rpc-network-passphrase", "", "override network passphrase (required for custom; overrides the value derived from --stellar-rpc-network when set)")
+
+	// Deprecated: --is-mainnet was the original flag and is kept for
+	// backwards compatibility. Prefer --stellar-rpc-network=mainnet|testnet
+	// or --stellar-rpc-network-passphrase=... for explicit control. When
+	// both are set, the new flags win.
+	cmd.Flags().Bool("is-mainnet", false, "DEPRECATED: use --stellar-rpc-network=mainnet|testnet instead")
+	_ = cmd.Flags().MarkDeprecated("is-mainnet", "use --stellar-rpc-network=mainnet|testnet instead")
+
 	return cmd
 }
 
-func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecutor {
+func fetchRpcRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecutor {
 	return func(cmd *cobra.Command, args []string) (err error) {
 		stateDir := sflags.MustGetString(cmd, "state-dir")
 
@@ -46,7 +56,11 @@ func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecut
 		fetchInterval := sflags.MustGetDuration(cmd, "interval-between-fetch")
 		latestBlockRetryInterval := sflags.MustGetDuration(cmd, "latest-block-retry-interval")
 		maxBlockFetchDuration := sflags.MustGetDuration(cmd, "max-block-fetch-duration")
-		isMainnet := sflags.MustGetBool(cmd, "is-mainnet")
+
+		networkPassphrase, err := resolveRPCNetworkPassphrase(cmd)
+		if err != nil {
+			return err
+		}
 
 		logger.Info(
 			"launching firehose-stellar poller",
@@ -54,6 +68,7 @@ func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecut
 			zap.Uint64("first_streamable_block", startBlock),
 			zap.Duration("interval_between_fetch", fetchInterval),
 			zap.Duration("latest_block_retry_interval", latestBlockRetryInterval),
+			zap.String("network_passphrase", networkPassphrase),
 		)
 
 		rollingStrategy := firecoreRPC.NewStickyRollingStrategy[*rpc.Client]()
@@ -68,7 +83,7 @@ func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecut
 		transactionFetchLimit := sflags.MustGetInt(cmd, "transaction-fetch-limit")
 
 		poller := blockpoller.New(
-			rpc.NewFetcher(fetchInterval, latestBlockRetryInterval, transactionFetchLimit, isMainnet, logger),
+			rpc.NewFetcher(fetchInterval, latestBlockRetryInterval, transactionFetchLimit, networkPassphrase, logger),
 			blockpoller.NewFireBlockHandler("type.googleapis.com/sf.stellar.type.v1.Block"),
 			rpcClients,
 			blockpoller.WithStoringState[*rpc.Client](stateDir),
@@ -81,5 +96,44 @@ func fetchRunE(logger *zap.Logger, tracer logging.Tracer) firecore.CommandExecut
 		}
 
 		return nil
+	}
+}
+
+// resolveRPCNetworkPassphrase derives the network passphrase to use for
+// the rpc fetcher. Resolution order, highest precedence first:
+//
+//  1. --stellar-rpc-network-passphrase=<string>  (explicit override)
+//  2. --stellar-rpc-network=mainnet|testnet|custom
+//  3. --is-mainnet  (deprecated; only consulted if the new flags are
+//     untouched)
+//
+// `custom` requires --stellar-rpc-network-passphrase to also be set.
+func resolveRPCNetworkPassphrase(cmd *cobra.Command) (string, error) {
+	networkName := sflags.MustGetString(cmd, "stellar-rpc-network")
+	override := sflags.MustGetString(cmd, "stellar-rpc-network-passphrase")
+
+	// Explicit override always wins.
+	if override != "" {
+		return override, nil
+	}
+
+	// Back-compat: if the user explicitly set --is-mainnet and did not
+	// override --stellar-rpc-network, honor the deprecated flag.
+	if cmd.Flags().Changed("is-mainnet") && !cmd.Flags().Changed("stellar-rpc-network") {
+		if sflags.MustGetBool(cmd, "is-mainnet") {
+			return network.PublicNetworkPassphrase, nil
+		}
+		return network.TestNetworkPassphrase, nil
+	}
+
+	switch networkName {
+	case "mainnet":
+		return network.PublicNetworkPassphrase, nil
+	case "testnet":
+		return network.TestNetworkPassphrase, nil
+	case "custom":
+		return "", fmt.Errorf("--stellar-rpc-network-passphrase is required when --stellar-rpc-network=custom")
+	default:
+		return "", fmt.Errorf("unsupported stellar rpc network: %s (want mainnet|testnet|custom)", networkName)
 	}
 }

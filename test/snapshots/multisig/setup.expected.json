@@ -1,0 +1,110 @@
+{
+  "applicationOrder": 1,
+  "createdAt": "$createdAt",
+  "envelope": {
+    "Type": 2,
+    "V1": {
+      "Signatures": [
+        {
+          "Hint": "$hint",
+          "Signature": "$signature"
+        }
+      ],
+      "Tx": {
+        "Cond": {
+          "TimeBounds": {
+            "MaxTime": 0,
+            "MinTime": 0
+          },
+          "Type": 1
+        },
+        "Ext": {
+          "V": 0
+        },
+        "Fee": 100,
+        "Memo": {
+          "Type": 0
+        },
+        "Operations": [
+          {
+            "Body": {
+              "SetOptionsOp": {
+                "HighThreshold": 2,
+                "MasterWeight": 1,
+                "MedThreshold": 2,
+                "Signer": {
+                  "Key": "GAI4PO3S5C2U3IBNZM5IOOORAKUZNPHF26SHRFVB5THSR2XZW3IE2TJB",
+                  "Weight": 1
+                }
+              },
+              "Type": 5
+            }
+          }
+        ],
+        "SeqNum": "$seqNum",
+        "SourceAccount": "GDVNHAIMLUAM2TF3J3HKXFM7QC4PNF7WH6IICGIHB7E5QMLDL6G7M2HJ"
+      }
+    }
+  },
+  "events": {
+    "transaction": [
+      {
+        "Event": {
+          "Body": {
+            "V": 0,
+            "V0": {
+              "Data": {
+                "I128": {
+                  "Hi": 0,
+                  "Lo": 100
+                },
+                "Type": 10
+              },
+              "Topics": [
+                {
+                  "Sym": "fee",
+                  "Type": 15
+                },
+                {
+                  "Address": {
+                    "AccountId": "GDVNHAIMLUAM2TF3J3HKXFM7QC4PNF7WH6IICGIHB7E5QMLDL6G7M2HJ",
+                    "Type": 0
+                  },
+                  "Type": 18
+                }
+              ]
+            }
+          },
+          "ContractId": "CDMLFMKMMD7MWZP3FKUBZPVHTUEDLSX4BYGYKH4GCESXYHS3IHQ4EIG4",
+          "Ext": {
+            "V": 0
+          },
+          "Type": 1
+        },
+        "Stage": 0
+      }
+    ]
+  },
+  "hash": "$hash",
+  "result": {
+    "Ext": {
+      "V": 0
+    },
+    "FeeCharged": 100,
+    "Result": {
+      "Code": 0,
+      "Results": [
+        {
+          "Code": 0,
+          "Tr": {
+            "SetOptionsResult": {
+              "Code": 0
+            },
+            "Type": 5
+          }
+        }
+      ]
+    }
+  },
+  "status": "SUCCESS"
+}
