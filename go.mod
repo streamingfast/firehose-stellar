@@ -5,7 +5,7 @@ go 1.26.0
 replace github.com/jhump/protoreflect => github.com/streamingfast/protoreflect v0.0.0-20231205191344-4b629d20ce8d
 
 require (
-	github.com/bobg/go-generics/v3 v3.5.0
+	github.com/bobg/go-generics/v3 v3.7.0
 	github.com/go-json-experiment/json v0.0.0-20231013223334-54c864be5b8d // FIXME pinned to Oct 2023 snapshot to match firehose-core's internal json/marshallers.go (old API names NewMarshalers / MarshalFuncV2). Bump when firehose-core upstream renames its call sites to JoinMarshalers / MarshalToFunc and bumps this pin itself; see cmd/firestellar/tool_decode_block.go header.
 	github.com/planetscale/vtprotobuf v0.6.1-0.20240319094008-0393e58bdf10
 	github.com/spf13/cobra v1.10.2
@@ -21,7 +21,7 @@ require (
 	google.golang.org/protobuf v1.36.11
 )
 
-require github.com/sirupsen/logrus v1.9.3
+require github.com/sirupsen/logrus v1.9.4
 
 require (
 	buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.16.1-20240117202343-bf8f65e8876c.1 // indirect
