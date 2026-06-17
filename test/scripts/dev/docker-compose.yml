@@ -21,9 +21,9 @@ services:
   quickstart:
     image: ${QUICKSTART_IMAGE:-stellar/quickstart:testing}
     # Force a fresh pull each `up` so we don't keep running a locally
-    # cached quickstart whose bundled stellar-core predates the SDF
-    # May 2026 critical fix (>= 26.1.0-3210.427aa3978). Override with
-    # QUICKSTART_PULL_POLICY=missing to skip the pull in air-gapped envs.
+    # cached quickstart whose bundled stellar-core predates Protocol 27
+    # (>= 27.0.0-3288.7696c069d); an older core halts at the P27 upgrade
+    # ledger. Override with QUICKSTART_PULL_POLICY=missing in air-gapped envs.
     pull_policy: ${QUICKSTART_PULL_POLICY:-always}
     # quickstart is amd64-only; pin so we don't rely on docker's default
     # platform inference (which warns on Apple Silicon).

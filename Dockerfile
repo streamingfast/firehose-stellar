@@ -23,14 +23,16 @@ ARG BINARY_NAME=firestellar
 # and require mounting a binary at /usr/bin/stellar-core or overriding
 # --stellar-core-bin. The RPC fetcher works on arm64 without stellar-core.
 #
-# Security: stellar-core 26.1.0-3210.427aa3978 fixes a critical network
-# vulnerability (SDF advisory, May 2026). The build pulls from SDF's
-# `stable` apt channel which now ships the patched version; rebuilds
-# after that publish date pick it up automatically. STELLAR_CORE_MIN_VERSION
-# is asserted post-install to fail the build loudly if the apt index is
-# pinned/cached to a pre-fix package somehow.
+# Protocol 27 ("Zipper") requires stellar-core 27.0.x: an older captive-core
+# halts at the P27 upgrade ledger (mainnet 2026-07-08, testnet 2026-06-18)
+# instead of following the network. The build pulls from SDF's `stable` apt
+# channel, which ships the P27 release; rebuilds pick it up automatically.
+# STELLAR_CORE_MIN_VERSION is asserted post-install to fail the build loudly
+# if the apt index is pinned/cached to a pre-P27 package somehow. The bound is
+# intentionally codename-agnostic (no `.noble`/`.jammy` suffix) so the dpkg
+# comparison holds whatever Ubuntu base firehose-core ships.
 ARG TARGETARCH
-ARG STELLAR_CORE_MIN_VERSION=26.1.0-3210.427aa3978
+ARG STELLAR_CORE_MIN_VERSION=27.0.0-3288.7696c069d
 RUN set -eux; \
     if [ "${TARGETARCH}" = "amd64" ]; then \
         apt-get update; \
@@ -47,7 +49,7 @@ RUN set -eux; \
         stellar-core version; \
         INSTALLED=$(dpkg-query -W -f='${Version}' stellar-core); \
         if ! dpkg --compare-versions "${INSTALLED}" ge "${STELLAR_CORE_MIN_VERSION}"; then \
-            echo "stellar-core ${INSTALLED} is older than required ${STELLAR_CORE_MIN_VERSION}; refusing to build (see SDF May 2026 advisory)." >&2; \
+            echo "stellar-core ${INSTALLED} is older than required ${STELLAR_CORE_MIN_VERSION}; refusing to build (Protocol 27 support: an older core halts at the P27 upgrade ledger)." >&2; \
             exit 1; \
         fi; \
     else \
