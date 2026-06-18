@@ -55,8 +55,11 @@ func Load(path string) (*Snapshot, error) {
 }
 
 // Bind associates a $var placeholder with a runtime value. During Compare,
-// every occurrence of the value in `actual` is replaced with `$name` before
-// the deep equality check, so snapshots stay stable across runs.
+// any field in `actual` whose entire value equals this value is replaced with
+// `$name` before the deep equality check, so snapshots stay stable across
+// runs. Matching is whole-value, not substring, so a binding never rewrites a
+// field that merely contains the value (e.g. a ledger sequence appearing
+// inside an account address).
 func (s *Snapshot) Bind(name, value string) {
 	if value == "" {
 		return
@@ -151,8 +154,9 @@ type replacement struct {
 	to   string
 }
 
-// sortedReplacements returns longest-value-first so that overlapping bindings
-// don't shadow each other (e.g. "ABCDEF" replaces before "ABC").
+// sortedReplacements returns replacements longest-value-first. With whole-value
+// matching this only disambiguates the rare case of two bindings sharing an
+// identical value.
 func sortedReplacements(bindings map[string]string) []replacement {
 	out := make([]replacement, 0, len(bindings))
 	for placeholder, value := range bindings {
@@ -162,12 +166,19 @@ func sortedReplacements(bindings map[string]string) []replacement {
 	return out
 }
 
+// substitute returns the placeholder bound to s when s exactly equals a bound
+// value, otherwise s unchanged. Matching is whole-string, never substring, so
+// a short or numeric binding — e.g. a ledger sequence "43" — cannot corrupt an
+// unrelated field that merely contains those characters (an account address, a
+// hash). Snapshot placeholders are always whole field values.
 func substitute(s string, reps []replacement) string {
 	for _, r := range reps {
 		if r.from == "" {
 			continue
 		}
-		s = strings.ReplaceAll(s, r.from, r.to)
+		if s == r.from {
+			return r.to
+		}
 	}
 	return s
 }

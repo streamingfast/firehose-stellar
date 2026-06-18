@@ -79,3 +79,26 @@ func TestSnapshotsUpdate(t *testing.T) {
 		t.Fatalf("expected $source placeholder in regenerated snapshot, got:\n%s", blob)
 	}
 }
+
+// TestBindMatchesWholeValueNotSubstring guards the ledger-sequence collision: a
+// short bound value (e.g. "43") must template a field only when it is the whole
+// value, never when it appears as a substring of an unrelated field such as a
+// deterministic account address. Regression for a snapshot mismatch where the
+// ledger sequence landed inside the source-account address on a fresh chain.
+func TestBindMatchesWholeValueNotSubstring(t *testing.T) {
+	s := &Snapshot{bindings: map[string]string{}}
+	s.Bind("ledger", "43")
+
+	const address = "GD65IG7OO6TUGRY6WVFJDZAMSL5FKNKH7VSKV46A436QDWQD42PLCITV"
+	normalized := s.normalize(map[string]any{
+		"source": address, // contains "43" as a substring — must stay intact
+		"seq":    "43",     // whole value — must be templated
+	}).(map[string]any)
+
+	if got := normalized["source"]; got != address {
+		t.Fatalf("address corrupted by substring match: got %q, want %q", got, address)
+	}
+	if got := normalized["seq"]; got != "$ledger" {
+		t.Fatalf("whole-value field not templated: got %q, want %q", got, "$ledger")
+	}
+}
