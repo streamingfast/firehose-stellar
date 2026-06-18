@@ -6,6 +6,8 @@ for instructions to keep up to date.
 
 ## Unreleased
 
+## v1.1.0
+
 * Support Stellar Protocol 27 (Zipper): bump `go-stellar-sdk` to v0.6.0 (CAP-0071 Soroban auth XDR) and require `stellar-core >= 27.0.0-3288.7696c069d`. An older captive-core halts at the P27 upgrade ledger (mainnet 2026-07-08, testnet 2026-06-18).
 * Add captive-core fetcher backend (`firestellar fetch captive-core`) that spawns a `stellar-core` subprocess and streams ledgers via the captive-core peer + history archive path. Captive-core is now the supported backend going forward; the RPC poller is kept for compatibility but no longer actively developed.
 * Add cursor persistence shared between both backends: `--state-dir` writes `cursor.json` after each emitted block so restarts resume at `last_fired_block + 1`. Default `--state-dir` is now `/data/work` for both backends (was `/data/poller` / `/data/captive-core`).
