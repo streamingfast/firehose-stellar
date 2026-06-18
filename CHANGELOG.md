@@ -16,6 +16,7 @@ for instructions to keep up to date.
 * CI now reads the Go toolchain version from `go.mod` (`go-version-file`) instead of pinning it inside the workflow.
 * Fix poller hash / previous-hash encoding bug.
 * Fix `json.Number` handling in XDR normalizers (preserves large-int precision in snapshot/diff round-trips).
+* Fix battlefield snapshot templating corrupting any field that contains a bound value as a substring (e.g. a low ledger sequence number landing inside a deterministic account address); bound values now match whole field values only.
 * Walk the current store when searching for cursor data.
 
 ## v1.0.6 
