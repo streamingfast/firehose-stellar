@@ -70,12 +70,31 @@ If `stellar-core` is not on `$PATH`, the captive-core fetcher silently disables 
 - `docker` + `docker compose` plugin (for quickstart)
 - `go` 1.26+
 - `stellar-core` binary on `$PATH` (for captive-core in-process fetcher)
-  - Required minimum: **`27.0.0-3288.7696c069d`** (Protocol 27 "Zipper"; an older core halts at the P27 upgrade ledger)
+  - Required minimum: **`28.0.0-3494.a9b861321`** (Protocol 28; an older core halts at the P28 upgrade ledger)
   - macOS: `brew upgrade stellar/sdf/stellar-core` (or `brew install` for first-time)
-  - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org); run `apt update && apt install --only-upgrade stellar-core` on existing hosts to pick up the Protocol 27 build
+  - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org); run `apt update && apt install --only-upgrade stellar-core` on existing hosts to pick up the Protocol 28 build
   - Override location via `STELLAR_CORE_BIN=/path/to/stellar-core`
 
 The stellar-core version must be protocol-compatible with the quickstart image — same major version is the safest match. The compose stack pulls `stellar/quickstart:testing` with `pull_policy: always` (override via `QUICKSTART_PULL_POLICY=missing`) so the bundled stellar-core stays current with SDF's patched release.
+
+### Testing an unreleased protocol
+
+`stellar/quickstart:testing` tracks whatever protocol testnet currently runs, so between a
+stellar-core release and the testnet vote it still boots the *previous* protocol. To exercise
+the next protocol before the vote, point the stack at the `future` tag:
+
+```bash
+QUICKSTART_IMAGE=stellar/quickstart:future go test ./test/scenarios/...
+```
+
+Confirm the chain came up on the protocol you expect — `curl -s localhost:8000/ | jq
+.current_protocol_version` — since the `future` image's stellar-core reports a version string
+below its maximum supported protocol.
+
+Note that a single-validator standalone network does not produce every ledger shape a public
+network does. CAP-0083 `STELLAR_VALUE_EMPTY_TX_SET` in particular is never emitted locally:
+`--local` signs an ordinary `STELLAR_VALUE_SIGNED` with an empty tx-set hash instead. Ledger
+shapes that only appear under multi-validator consensus stay uncovered here.
 
 ## Snapshot regen + determinism
 

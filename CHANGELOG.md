@@ -6,6 +6,8 @@ for instructions to keep up to date.
 
 ## Unreleased
 
+* Support Stellar Protocol 28: bump `go-stellar-sdk` to v0.7.2 (CAP-0083 `STELLAR_VALUE_EMPTY_TX_SET`, CAP-0085 `CONTRACT_EXECUTABLE_EXTERNAL_REF` XDR) and require `stellar-core >= 28.0.0-3494.a9b861321`. An older captive-core halts at the P28 upgrade ledger (testnet vote 2026-08-27 1700 UTC, mainnet vote 2026-09-16 1700 UTC, per the [SDF Protocol 28 upgrade guide](https://stellar.org/blog/developers/adapter-protocol-28-upgrade-guide)). The SDK bump also carries SDK-side validation changes that ride along past the P28 release (v0.7.0): `strkey.Decode`/`DecodeAny` enforce SEP-23 payload lengths, `xdr.Asset.LessThan` orders by XDR encoding, and `xdr.NewPoolId` rejects non-strictly-ordered asset pairs. No caller in this repo is affected.
+
 ## v1.1.0
 
 * Support Stellar Protocol 27 (Zipper): bump `go-stellar-sdk` to v0.6.0 (CAP-0071 Soroban auth XDR) and require `stellar-core >= 27.0.0-3288.7696c069d`. An older captive-core halts at the P27 upgrade ledger (mainnet 2026-07-08, testnet 2026-06-18).
