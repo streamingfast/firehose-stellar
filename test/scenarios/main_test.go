@@ -100,6 +100,12 @@ func runTests(m *testing.M) int {
 			running, _ := stack.IsRunning(ctx)
 			if running {
 				fmt.Fprintln(os.Stderr, ">> reusing running quickstart")
+				// A container that is merely up may still be mid-boot:
+				// horizon answers 503 "Still Ingesting" for a while yet.
+				if err := stack.WaitReady(ctx); err != nil {
+					fmt.Fprintf(os.Stderr, "quickstart not ready: %v\n", err)
+					return 2
+				}
 			} else {
 				fmt.Fprintln(os.Stderr, ">> bringing up quickstart")
 				if err := stack.Up(ctx); err != nil {
@@ -118,7 +124,20 @@ func runTests(m *testing.M) int {
 		return exitCode
 	}
 
-	// MANAGE_STACK=0 path: trust quickstart is already up.
+	// MANAGE_STACK=0 path: the caller owns the container's lifecycle, but
+	// "started" is not "ready" — up.sh returns as soon as compose's
+	// healthcheck sees nginx answering, well before horizon has ingested
+	// anything. Gate on the same probes rather than trusting the caller.
+	stack, err := devstack.New(devstack.DefaultConfig())
+	if err != nil {
+		fmt.Fprintf(os.Stderr, "devstack init: %v\n", err)
+		return 2
+	}
+	if err := stack.WaitReady(ctx); err != nil {
+		fmt.Fprintf(os.Stderr, "quickstart not ready: %v\n", err)
+		return 2
+	}
+
 	return runWithFetchers(m)
 }
 

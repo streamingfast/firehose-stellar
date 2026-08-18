@@ -11,6 +11,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -49,9 +50,10 @@ type Config struct {
 	// soroban-rpc / friendbot.
 	HorizonPort int
 
-	// SorobanReadyTimeout caps how long Up waits for soroban-rpc and
-	// friendbot to come online.
-	SorobanReadyTimeout time.Duration
+	// ReadyTimeout is the total budget for WaitReady — soroban-rpc,
+	// friendbot and horizon ingestion share it rather than each getting
+	// their own.
+	ReadyTimeout time.Duration
 
 	// PollInterval is the poll cadence for the readiness probes.
 	PollInterval time.Duration
@@ -73,12 +75,12 @@ type Config struct {
 // ComposeFile + DataRoot resolved at New() time.
 func DefaultConfig() Config {
 	return Config{
-		ProjectName:         "battlefield-stellar",
-		HorizonPort:         8000,
-		SorobanReadyTimeout: 120 * time.Second,
-		PollInterval:        2 * time.Second,
-		Stdout:              os.Stderr,
-		Stderr:              os.Stderr,
+		ProjectName:  "battlefield-stellar",
+		HorizonPort:  8000,
+		ReadyTimeout: 120 * time.Second,
+		PollInterval: 2 * time.Second,
+		Stdout:       os.Stderr,
+		Stderr:       os.Stderr,
 	}
 }
 
@@ -97,8 +99,8 @@ func New(cfg Config) (*Stack, error) {
 	if cfg.HorizonPort == 0 {
 		cfg.HorizonPort = 8000
 	}
-	if cfg.SorobanReadyTimeout == 0 {
-		cfg.SorobanReadyTimeout = 120 * time.Second
+	if cfg.ReadyTimeout == 0 {
+		cfg.ReadyTimeout = 120 * time.Second
 	}
 	if cfg.PollInterval == 0 {
 		cfg.PollInterval = 2 * time.Second
@@ -138,8 +140,8 @@ func (s *Stack) ComposeFile() string { return s.cfg.ComposeFile }
 // DataRoot returns the resolved host data directory.
 func (s *Stack) DataRoot() string { return s.cfg.DataRoot }
 
-// Up starts quickstart and waits for soroban-rpc + friendbot to come
-// online. Idempotent.
+// Up starts quickstart and waits for soroban-rpc, friendbot and horizon
+// ingestion to come online. Idempotent.
 func (s *Stack) Up(ctx context.Context) error {
 	if err := s.requireDocker(ctx); err != nil {
 		return err
@@ -153,7 +155,27 @@ func (s *Stack) Up(ctx context.Context) error {
 		return fmt.Errorf("compose up quickstart: %w", err)
 	}
 
-	if _, err := s.waitForSoroban(ctx); err != nil {
+	if err := s.WaitReady(ctx); err != nil {
+		return err
+	}
+
+	s.logf(">> quickstart ready (horizon http://localhost:%d)", s.cfg.HorizonPort)
+	return nil
+}
+
+// WaitReady blocks until every quickstart service the scenarios depend on
+// answers: soroban-rpc is producing ledgers, friendbot responds through
+// horizon's proxy, and horizon has ingested a ledger. ReadyTimeout is the
+// budget for all three together, not per gate.
+//
+// Exported because a stack brought up by other means — test/scripts/dev/up.sh,
+// or a container left running from a previous run — has passed no gate at all:
+// compose's healthcheck only proves nginx is answering.
+func (s *Stack) WaitReady(ctx context.Context) error {
+	ctx, cancel := context.WithTimeout(ctx, s.cfg.ReadyTimeout)
+	defer cancel()
+
+	if err := s.waitForSoroban(ctx); err != nil {
 		return err
 	}
 
@@ -165,8 +187,7 @@ func (s *Stack) Up(ctx context.Context) error {
 		return err
 	}
 
-	s.logf(">> quickstart ready (horizon http://localhost:%d)", s.cfg.HorizonPort)
-	return nil
+	return s.waitForHorizon(ctx)
 }
 
 // Down tears quickstart down. Idempotent.
@@ -261,88 +282,165 @@ func (s *Stack) compose(ctx context.Context, args ...string) error {
 	return cmd.Run()
 }
 
-// waitForSoroban polls getLatestLedger until the chain is producing
-// ledgers (>=2). Returns the latest ledger seen.
-func (s *Stack) waitForSoroban(ctx context.Context) (uint64, error) {
-	deadline := time.Now().Add(s.cfg.SorobanReadyTimeout)
-	url := fmt.Sprintf("http://localhost:%d/soroban/rpc", s.cfg.HorizonPort)
-	body := []byte(`{"jsonrpc":"2.0","id":1,"method":"getLatestLedger"}`)
+// waitUntil polls probe every PollInterval until it reports ready, emitting
+// a dot per failed attempt. probe returns a short detail rendered into the ✓
+// line, or into the timeout error when the deadline wins.
+//
+// The deadline comes from ctx when it carries one, so callers can give
+// several gates a shared budget; ctx also bounds each individual probe, which
+// is what stops a stalled connection from outliving the deadline.
+func (s *Stack) waitUntil(ctx context.Context, what string, probe func(context.Context) (detail string, ready bool)) error {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		var cancel context.CancelFunc
+		ctx, cancel = context.WithTimeout(ctx, s.cfg.ReadyTimeout)
+		defer cancel()
+		deadline, _ = ctx.Deadline()
+	}
 
-	s.log(">> waiting for soroban-rpc")
-	var lastErr error
+	s.log(">> waiting for " + what)
+	start := time.Now()
+	var last string
 	for time.Now().Before(deadline) {
 		select {
 		case <-ctx.Done():
-			return 0, ctx.Err()
+			return s.readyErr(ctx, what, last, start)
 		default:
 		}
-		latest, err := sorobanLatestLedger(ctx, url, body)
-		if err == nil && latest >= 2 {
-			s.logf(" ✓ (ledger %d)", latest)
-			return latest, nil
+		detail, ready := probe(ctx)
+		if ready {
+			s.logf(" ✓ (%s)", detail)
+			return nil
 		}
-		lastErr = err
+		last = detail
 		s.log(".")
-		time.Sleep(s.cfg.PollInterval)
+
+		select {
+		case <-ctx.Done():
+			return s.readyErr(ctx, what, last, start)
+		case <-time.After(s.cfg.PollInterval):
+		}
 	}
-	return 0, fmt.Errorf("soroban-rpc didn't come online within %s (last err: %v); see %s",
-		s.cfg.SorobanReadyTimeout, lastErr, s.cfg.LogFile)
+	return s.readyErr(ctx, what, last, start)
+}
+
+// readyErr names the service that ran out of budget. A cancelled (rather than
+// expired) ctx is reported as-is — that's a caller abort, not a slow stack.
+// The duration is measured rather than taken from ReadyTimeout, since the
+// deadline may have come from the caller and be shorter.
+func (s *Stack) readyErr(ctx context.Context, what, last string, start time.Time) error {
+	if err := ctx.Err(); err != nil && !errors.Is(err, context.DeadlineExceeded) {
+		return err
+	}
+	return fmt.Errorf("%s didn't come online within %s (last: %s); see %s",
+		what, time.Since(start).Round(time.Second), last, s.cfg.LogFile)
+}
+
+// waitForSoroban polls getLatestLedger until the chain is producing
+// ledgers (>=2).
+func (s *Stack) waitForSoroban(ctx context.Context) error {
+	url := fmt.Sprintf("http://localhost:%d/soroban/rpc", s.cfg.HorizonPort)
+	body := []byte(`{"jsonrpc":"2.0","id":1,"method":"getLatestLedger"}`)
+
+	return s.waitUntil(ctx, "soroban-rpc", func(ctx context.Context) (string, bool) {
+		latest, err := sorobanLatestLedger(ctx, url, body)
+		if err != nil {
+			return "err: " + err.Error(), false
+		}
+		return fmt.Sprintf("ledger %d", latest), latest >= 2
+	})
 }
 
 // waitForFriendbot polls horizon's friendbot endpoint until it returns
 // a non-5xx response. 502 means horizon's reverse proxy can't reach
 // friendbot yet; 4xx means friendbot is actually responding.
 func (s *Stack) waitForFriendbot(ctx context.Context) error {
-	deadline := time.Now().Add(s.cfg.SorobanReadyTimeout)
 	url := fmt.Sprintf("http://localhost:%d/friendbot", s.cfg.HorizonPort)
 
-	s.log(">> waiting for friendbot")
-	var lastStatus int
-	for time.Now().Before(deadline) {
-		select {
-		case <-ctx.Done():
-			return ctx.Err()
-		default:
+	return s.waitUntil(ctx, "friendbot", func(ctx context.Context) (string, bool) {
+		status, err := httpStatus(ctx, url)
+		if err != nil {
+			return "err: " + err.Error(), false
 		}
-		req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
-		if err == nil {
-			resp, err := http.DefaultClient.Do(req)
-			if err == nil {
-				lastStatus = resp.StatusCode
-				resp.Body.Close()
-				if resp.StatusCode < 500 {
-					s.logf(" ✓ (status %d)", resp.StatusCode)
-					return nil
-				}
-			}
-		}
-		s.log(".")
-		time.Sleep(s.cfg.PollInterval)
-	}
-	return fmt.Errorf("friendbot didn't come online within %s (last status: %d); see %s",
-		s.cfg.SorobanReadyTimeout, lastStatus, s.cfg.LogFile)
+		return fmt.Sprintf("status %d", status), status < 500
+	})
 }
 
-func sorobanLatestLedger(ctx context.Context, url string, body []byte) (uint64, error) {
-	req, err := http.NewRequestWithContext(ctx, "POST", url, bytes.NewReader(body))
+// waitForHorizon polls horizon's root endpoint until it has ingested at
+// least one ledger. Horizon serves `/` — and proxies friendbot — well
+// before its ingestion pipeline has any history, and until it does every
+// account query answers 503 "Still Ingesting", which fails any scenario
+// that loads an account.
+func (s *Stack) waitForHorizon(ctx context.Context) error {
+	url := fmt.Sprintf("http://localhost:%d/", s.cfg.HorizonPort)
+
+	return s.waitUntil(ctx, "horizon ingestion", func(ctx context.Context) (string, bool) {
+		latest, err := horizonIngestedLedger(ctx, url)
+		if err != nil {
+			return "err: " + err.Error(), false
+		}
+		return fmt.Sprintf("ledger %d", latest), latest > 0
+	})
+}
+
+func httpStatus(ctx context.Context, url string) (int, error) {
+	req, err := http.NewRequestWithContext(ctx, "GET", url, nil)
 	if err != nil {
 		return 0, err
 	}
-	req.Header.Set("Content-Type", "application/json")
 	resp, err := http.DefaultClient.Do(req)
 	if err != nil {
 		return 0, err
 	}
 	defer resp.Body.Close()
-	if resp.StatusCode != 200 {
-		return 0, fmt.Errorf("status %d", resp.StatusCode)
+	_, _ = io.Copy(io.Discard, resp.Body)
+	return resp.StatusCode, nil
+}
+
+// fetchJSON issues one request and decodes a 200 response into out. A
+// non-nil body is sent as JSON.
+func fetchJSON(ctx context.Context, method, url string, body []byte, out any) error {
+	var payload io.Reader
+	if body != nil {
+		payload = bytes.NewReader(body)
 	}
+	req, err := http.NewRequestWithContext(ctx, method, url, payload)
+	if err != nil {
+		return err
+	}
+	if body != nil {
+		req.Header.Set("Content-Type", "application/json")
+	}
+	resp, err := http.DefaultClient.Do(req)
+	if err != nil {
+		return err
+	}
+	defer resp.Body.Close()
+	if resp.StatusCode != 200 {
+		return fmt.Errorf("status %d", resp.StatusCode)
+	}
+	return json.NewDecoder(resp.Body).Decode(out)
+}
+
+// horizonIngestedLedger reads history_latest_ledger off horizon's root
+// endpoint — 0 until the ingestion pipeline has written any history.
+func horizonIngestedLedger(ctx context.Context, url string) (uint64, error) {
+	var out struct {
+		HistoryLatestLedger uint64 `json:"history_latest_ledger"`
+	}
+	if err := fetchJSON(ctx, "GET", url, nil, &out); err != nil {
+		return 0, err
+	}
+	return out.HistoryLatestLedger, nil
+}
+
+func sorobanLatestLedger(ctx context.Context, url string, body []byte) (uint64, error) {
 	var out struct {
 		Result struct {
 			Sequence uint64 `json:"sequence"`
 		} `json:"result"`
 	}
-	if err := json.NewDecoder(resp.Body).Decode(&out); err != nil {
+	if err := fetchJSON(ctx, "POST", url, body, &out); err != nil {
 		return 0, err
 	}
 	return out.Result.Sequence, nil

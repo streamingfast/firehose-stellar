@@ -85,6 +85,9 @@ func (r *Runner) NewFundedAccount(name string) (*keypair.Full, error) {
 	if err := r.Stellar.FundAccount(kp.Address()); err != nil {
 		return nil, fmt.Errorf("fund %s: %w", kp.Address(), err)
 	}
+	if _, err := r.Stellar.WaitForAccount(kp.Address()); err != nil {
+		return nil, fmt.Errorf("fund %s: %w", kp.Address(), err)
+	}
 	return kp, nil
 }
 

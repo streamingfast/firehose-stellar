@@ -102,6 +102,55 @@ func (c *Client) LoadAccount(address string) (hProtocol.Account, error) {
 	return c.Horizon.AccountDetail(horizonclient.AccountRequest{AccountID: address})
 }
 
+// WaitForAccount polls until horizon serves the account.
+//
+// Friendbot answers as soon as it has submitted the create-account
+// transaction, so the account is not queryable when FundAccount returns —
+// horizon 404s it until it ingests the containing ledger. Anything that
+// loads the account right after funding races that window.
+//
+// The wait is generous for the same reason FundAccount's is: on a freshly
+// reset chain horizon's ingestion trails core by several ledgers, and each
+// close is ~5s, so the gap is seconds to a minute rather than milliseconds.
+func (c *Client) WaitForAccount(address string) (hProtocol.Account, error) {
+	const maxAttempts = 30
+	const maxDelay = 4 * time.Second
+	delay := 500 * time.Millisecond
+
+	var lastErr error
+	for attempt := 1; attempt <= maxAttempts; attempt++ {
+		account, err := c.LoadAccount(address)
+		if err == nil {
+			return account, nil
+		}
+		lastErr = err
+		// 404 (ledger not ingested yet), 5xx (still ingesting) and transport
+		// failures (horizon restarting) are the transient cases; anything
+		// else is a real failure worth surfacing now.
+		status := horizonStatus(err)
+		if transient := status == 0 || status == 404 || status >= 500; !transient {
+			return hProtocol.Account{}, err
+		}
+		if attempt < maxAttempts {
+			time.Sleep(delay)
+			delay *= 2
+			if delay > maxDelay {
+				delay = maxDelay
+			}
+		}
+	}
+	return hProtocol.Account{}, fmt.Errorf("account %s not visible after %d attempts: %w", address, maxAttempts, lastErr)
+}
+
+// horizonStatus digs the HTTP status out of a horizon error, or 0 when the
+// error didn't come from horizon (transport failure, say).
+func horizonStatus(err error) int {
+	if hErr := horizonclient.GetError(err); hErr != nil {
+		return hErr.Problem.Status
+	}
+	return 0
+}
+
 // SubmitOps builds, signs and submits a transaction with the given operations,
 // signed by the given source keypair (and any extra cosigners). Returns the
 // horizon submit response, which includes the canonical transaction hash.
