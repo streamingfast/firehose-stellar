@@ -34,6 +34,23 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-go-
 
+      # Without stellar-core on PATH the battlefield suite silently drops the
+      # captive-core fetcher and asserts against the poller alone — the backend
+      # the suite exists to regression-check, not the supported one. SDF ships
+      # amd64 only, which is what ubuntu-latest runners are.
+      - name: Install stellar-core
+        run: |-
+          set -eux
+          sudo install -m 0755 -d /etc/apt/keyrings
+          curl -sSL https://apt.stellar.org/SDF.asc | sudo gpg --dearmor -o /etc/apt/keyrings/SDF.gpg
+          sudo chmod a+r /etc/apt/keyrings/SDF.gpg
+          . /etc/os-release
+          echo "deb [signed-by=/etc/apt/keyrings/SDF.gpg] https://apt.stellar.org ${VERSION_CODENAME} stable" \
+            | sudo tee /etc/apt/sources.list.d/SDF.list
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends stellar-core
+          stellar-core version
+
       - name: Build & Run Stellar Tests
         working-directory: .
         run: |-
