@@ -56,3 +56,17 @@ jobs:
         run: |-
           go build ./...
           go test ./...
+
+      # The battlefield suite writes stellar-core's own output to file so the
+      # test log stays readable, which leaves a CI failure with no way to see
+      # why a fetcher produced nothing.
+      - name: Upload battlefield logs
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: battlefield-logs
+          path: |
+            test/.data/fetchers.log
+            test/.data/compose.log
+          retention-days: 7
+          if-no-files-found: warn
