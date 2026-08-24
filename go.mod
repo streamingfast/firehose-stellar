@@ -18,10 +18,10 @@ require (
 	github.com/streamingfast/logging v1.2.2
 	github.com/stretchr/testify v1.12.1
 	go.uber.org/zap v1.28.0
-	google.golang.org/protobuf v1.36.12-0.20260120151049-f2248ac996af
+	google.golang.org/protobuf v1.36.12
 )
 
-require github.com/sirupsen/logrus v1.10.0
+require github.com/sirupsen/logrus v1.10.1
 
 require (
 	buf.build/gen/go/bufbuild/reflect/connectrpc/go v1.20.0-20240117202343-bf8f65e8876c.1 // indirect
