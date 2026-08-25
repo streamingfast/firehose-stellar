@@ -4,7 +4,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [MAINTAINERS.md](./MAINTAINERS.md)
 for instructions to keep up to date.
 
-## Unreleased
+## v1.2.0
 
 * Support Stellar Protocol 28: bump `go-stellar-sdk` to v0.7.2 (CAP-0083 `STELLAR_VALUE_EMPTY_TX_SET`, CAP-0085 `CONTRACT_EXECUTABLE_EXTERNAL_REF` XDR) and require `stellar-core >= 28.0.0-3494.a9b861321`. An older captive-core halts at the P28 upgrade ledger (testnet vote 2026-08-27 1700 UTC, mainnet vote 2026-09-16 1700 UTC, per the [SDF Protocol 28 upgrade guide](https://stellar.org/blog/developers/adapter-protocol-28-upgrade-guide)). The SDK bump also carries SDK-side validation changes that ride along past the P28 release (v0.7.0): `strkey.Decode`/`DecodeAny` enforce SEP-23 payload lengths, `xdr.Asset.LessThan` orders by XDR encoding, and `xdr.NewPoolId` rejects non-strictly-ordered asset pairs. No caller in this repo is affected.
 * Fix two battlefield races against horizon's ingestion lag, both of which failed the suite unattended. The test stack now waits for horizon to ingest its first ledger before scenarios run, on every path that reaches them — previously only soroban-rpc and friendbot were gated, and horizon answered `"Still Ingesting"` for ~10-15s past that. Funding an account now also waits for horizon to serve it, since friendbot returns once the create-account transaction is submitted, leaving anything that immediately loads the account to race a `"Resource Missing"` 404. `devstack.Config.SorobanReadyTimeout` is renamed `ReadyTimeout` and is now the shared budget for all three readiness probes.
