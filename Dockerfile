@@ -25,14 +25,16 @@ ARG BINARY_NAME=firestellar
 #
 # Protocol 28 requires stellar-core 28.0.x: an older captive-core halts at the
 # P28 upgrade ledger (testnet vote 2026-08-27, mainnet vote 2026-09-16) instead
-# of following the network. The build pulls from SDF's `stable` apt channel,
-# which ships the P28 release; rebuilds pick it up automatically.
+# of following the network. 28.0.1 is SDF's fix for the August 2026 critical
+# security advisory and is the floor every node on the network is asked to run.
+# The build pulls from SDF's `stable` apt channel, which ships that release;
+# rebuilds pick it up automatically.
 # STELLAR_CORE_MIN_VERSION is asserted post-install to fail the build loudly
-# if the apt index is pinned/cached to a pre-P28 package somehow. The bound is
-# intentionally codename-agnostic (no `.noble`/`.jammy` suffix) so the dpkg
-# comparison holds whatever Ubuntu base firehose-core ships.
+# if the apt index is pinned/cached to a package below the floor somehow.
+# The bound is intentionally codename-agnostic (no `.noble`/`.jammy` suffix)
+# so the dpkg comparison holds whatever Ubuntu base firehose-core ships.
 ARG TARGETARCH
-ARG STELLAR_CORE_MIN_VERSION=28.0.0-3494.a9b861321
+ARG STELLAR_CORE_MIN_VERSION=28.0.1-3508.947aad841
 RUN set -eux; \
     if [ "${TARGETARCH}" = "amd64" ]; then \
         apt-get update; \
@@ -49,7 +51,7 @@ RUN set -eux; \
         stellar-core version; \
         INSTALLED=$(dpkg-query -W -f='${Version}' stellar-core); \
         if ! dpkg --compare-versions "${INSTALLED}" ge "${STELLAR_CORE_MIN_VERSION}"; then \
-            echo "stellar-core ${INSTALLED} is older than required ${STELLAR_CORE_MIN_VERSION}; refusing to build (Protocol 28 support: an older core halts at the P28 upgrade ledger)." >&2; \
+            echo "stellar-core ${INSTALLED} is older than required ${STELLAR_CORE_MIN_VERSION}; refusing to build (the floor covers both Protocol 28 support and SDF's August 2026 security fix)." >&2; \
             exit 1; \
         fi; \
     else \
