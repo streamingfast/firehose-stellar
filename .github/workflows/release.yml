@@ -152,9 +152,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # streamingfast/actions/go-version would do this, but that repo is private and
+      # this one is public, so the action cannot be resolved from here. The `toolchain`
+      # directive wins over `go` when both are present, matching what the action does.
       - name: Resolve Go version
         id: go
-        uses: streamingfast/actions/go-version@v1
+        run: |
+          set -euo pipefail
+
+          version=$(sed -n 's/^toolchain go//p' go.mod)
+          if [[ -z "${version}" ]]; then
+            version=$(sed -n 's/^go //p' go.mod)
+          fi
+          if [[ -z "${version}" ]]; then
+            echo "no go or toolchain directive found in go.mod" >&2
+            exit 1
+          fi
+
+          echo "MAJOR_MINOR=$(cut -d. -f1,2 <<< "${version}")" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -170,7 +185,7 @@ jobs:
           target: binary
           outputs: type=local,dest=dist
           build-args: |
-            GO_VERSION=${{ steps.go.outputs.major_minor }}
+            GO_VERSION=${{ steps.go.outputs.MAJOR_MINOR }}
             GOOS=${{ matrix.goos }}
             GOARCH=${{ matrix.goarch }}
             VERSION=${{ needs.setup.outputs.version }}
@@ -242,9 +257,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
+      # streamingfast/actions/go-version would do this, but that repo is private and
+      # this one is public, so the action cannot be resolved from here. The `toolchain`
+      # directive wins over `go` when both are present, matching what the action does.
       - name: Resolve Go version
         id: go
-        uses: streamingfast/actions/go-version@v1
+        run: |
+          set -euo pipefail
+
+          version=$(sed -n 's/^toolchain go//p' go.mod)
+          if [[ -z "${version}" ]]; then
+            version=$(sed -n 's/^go //p' go.mod)
+          fi
+          if [[ -z "${version}" ]]; then
+            echo "no go or toolchain directive found in go.mod" >&2
+            exit 1
+          fi
+
+          echo "MAJOR_MINOR=$(cut -d. -f1,2 <<< "${version}")" >> "$GITHUB_OUTPUT"
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -283,7 +313,7 @@ jobs:
           labels: ${{ steps.meta.outputs.labels }}
           provenance: false
           build-args: |
-            GO_VERSION=${{ steps.go.outputs.major_minor }}
+            GO_VERSION=${{ steps.go.outputs.MAJOR_MINOR }}
             VERSION=${{ needs.setup.outputs.version }}
           # Deliberately uncached. The stellar-core install sits above any COPY, so its
           # layer key is just the base digest and the ARG values — a cache hit would
