@@ -4,7 +4,7 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [MAINTAINERS.md](./MAINTAINERS.md)
 for instructions to keep up to date.
 
-## Unreleased
+## v1.2.1
 
 * Require `stellar-core >= 28.0.1-3508.947aad841`, SDF's fix for the August 2026 critical security advisory. The amd64 Docker image installs it from the SDF `stable` apt channel. Operators supplying their own binary — arm64 images, which ship without one, or any deployment pointing `--stellar-core-bin` elsewhere — must upgrade that binary themselves, since the build-time floor cannot see it.
 
