@@ -1,6 +1,13 @@
 ARG FIRECORE_VERSION=v1.14.1
+# Fed from go.mod by the workflow (streamingfast/actions/go-version) so this tag
+# cannot drift below the `go` directive and fail late, after the pull.
+ARG GO_VERSION=1.26
 
-FROM golang:1.26-bookworm AS build
+# Pinned to the builder's architecture so the compiler always runs natively and
+# cross compiles instead of being emulated. GOOS/GOARCH default to the platform
+# Buildx is producing, which is what the runtime image needs, and are overridden
+# to reach a platform Docker has no notion of (darwin).
+FROM --platform=$BUILDPLATFORM golang:${GO_VERSION}-bookworm AS build
 WORKDIR /app
 
 COPY go.mod go.sum ./
@@ -10,8 +17,27 @@ COPY . ./
 
 ARG VERSION="edge"
 ARG BINARY_NAME=firestellar
+ARG TARGETOS
+ARG TARGETARCH
+ARG GOOS
+ARG GOARCH
 
-RUN go build -v -ldflags "-X main.version=${VERSION}" -o "${BINARY_NAME}" "./cmd/${BINARY_NAME}"
+# CGO off keeps one binary shape across every target: the darwin and arm64
+# artifacts have no cross toolchain available here, and the released archives
+# are expected to run on hosts other than the bookworm builder.
+# `-s -w` matches what goreleaser applied to every published archive before this
+# build produced them; without it the release assets carry DWARF and grow ~40%.
+RUN CGO_ENABLED=0 GOOS="${GOOS:-$TARGETOS}" GOARCH="${GOARCH:-$TARGETARCH}" \
+    go build -v -ldflags "-s -w -X main.version=${VERSION}" -o "${BINARY_NAME}" "./cmd/${BINARY_NAME}"
+
+# Extracted by the release workflow with `--target binary --output type=local`,
+# which writes the binary alone to the destination directory. Kept ahead of the
+# runtime stage so building it never reaches the stellar-core install below.
+FROM scratch AS binary
+
+ARG BINARY_NAME=firestellar
+
+COPY --from=build "/app/${BINARY_NAME}" "/${BINARY_NAME}"
 
 FROM ghcr.io/streamingfast/firehose-core:${FIRECORE_VERSION}
 

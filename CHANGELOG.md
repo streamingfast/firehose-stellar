@@ -1,8 +1,12 @@
 # Change log
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this
-project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [MAINTAINERS.md](./MAINTAINERS.md)
-for instructions to keep up to date.
+project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See the
+[Releasing](./README.md#releasing) section for how a version is cut.
+
+## Unreleased
+
+* Published binaries are now built with `CGO_ENABLED=0` and are statically linked, where previous releases were dynamically linked against glibc. Name resolution therefore goes through Go's pure resolver rather than the system NSS modules, which matters only where `nsswitch.conf` routes hosts somewhere other than DNS and files. Archive contents, names and sizes are otherwise unchanged.
 
 ## v1.2.1
 
