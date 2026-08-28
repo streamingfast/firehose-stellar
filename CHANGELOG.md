@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [MAINTAINERS.md](./MAINTAINERS.md)
 for instructions to keep up to date.
 
+## Unreleased
+
+* Require `stellar-core >= 28.0.1-3508.947aad841`, SDF's fix for the August 2026 critical security advisory. The amd64 Docker image installs it from the SDF `stable` apt channel. Operators supplying their own binary — arm64 images, which ship without one, or any deployment pointing `--stellar-core-bin` elsewhere — must upgrade that binary themselves, since the build-time floor cannot see it.
+
 ## v1.2.0
 
 * Support Stellar Protocol 28: bump `go-stellar-sdk` to v0.7.2 (CAP-0083 `STELLAR_VALUE_EMPTY_TX_SET`, CAP-0085 `CONTRACT_EXECUTABLE_EXTERNAL_REF` XDR) and require `stellar-core >= 28.0.0-3494.a9b861321`. An older captive-core halts at the P28 upgrade ledger (testnet vote 2026-08-27 1700 UTC, mainnet vote 2026-09-16 1700 UTC, per the [SDF Protocol 28 upgrade guide](https://stellar.org/blog/developers/adapter-protocol-28-upgrade-guide)). The SDK bump also carries SDK-side validation changes that ride along past the P28 release (v0.7.0): `strkey.Decode`/`DecodeAny` enforce SEP-23 payload lengths, `xdr.Asset.LessThan` orders by XDR encoding, and `xdr.NewPoolId` rejects non-strictly-ordered asset pairs. No caller in this repo is affected.
