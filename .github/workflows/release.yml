@@ -393,12 +393,10 @@ jobs:
           pattern: ${{ env.PROJECT_NAME }}_*
           merge-multiple: true
 
-      - name: Create checksums
-        working-directory: artifacts
-        run: |
-          sha256sum "${PROJECT_NAME}"_*.tar.gz > checksums.txt
-          cat checksums.txt
-
+      # No checksums.txt: GitHub records a sha256 `digest` per release asset and
+      # serves it from the releases API, so shipping our own would be a second,
+      # weaker copy of the same fact. The formula computes its hashes from the
+      # archives directly rather than reading a file.
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
