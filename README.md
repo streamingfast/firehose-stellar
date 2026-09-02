@@ -45,6 +45,27 @@ Both backends persist the last fired block to `{STATE_DIR}/cursor.json` after ea
 
 The cursor schema is shared between the two backends, so a single state directory can be reused if you switch backends.
 
+## Releasing
+
+A release is a tag push. `.github/workflows/release.yml` builds the binaries, pushes the
+images, creates the GitHub release and opens the Homebrew formula PR. Nothing is released
+from a developer machine — do not run `sfreleaser release`.
+
+1. Retitle the `## Unreleased` section of [CHANGELOG.md](CHANGELOG.md) to `## vX.Y.Z` and
+   merge that. The tag run reads its release notes from that section and fails before
+   building anything if it is missing.
+2. Tag `main` and push it:
+
+   ```bash
+   git tag vX.Y.Z && git push origin vX.Y.Z
+   ```
+
+3. Merge the formula PR the run opens against `streamingfast/homebrew-tap`. It is not
+   auto-merged, and until it lands `brew install` serves the previous version.
+
+`workflow_dispatch` runs the full build without publishing anything, which is how the
+cross-compile matrix gets validated before a tag exists.
+
 ## Contributing
 
 For more information, please read the [CONTRIBUTING.md](CONTRIBUTING.md) file.
