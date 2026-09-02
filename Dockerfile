@@ -1,6 +1,6 @@
-ARG FIRECORE_VERSION=v1.14.1
-# Fed from go.mod by the workflow (streamingfast/actions/go-version) so this tag
-# cannot drift below the `go` directive and fail late, after the pull.
+ARG FIRECORE_VERSION=v1.18.0
+# Fed from go.mod by the release workflow so this tag cannot drift below the
+# `go` directive and fail late, after the pull.
 ARG GO_VERSION=1.26
 
 # Pinned to the builder's architecture so the compiler always runs natively and
