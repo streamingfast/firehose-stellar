@@ -1,0 +1,567 @@
+---
+name: Build, push and release (if tag)
+
+# A release is just a tag push: the same workflow that builds and pushes an image
+# for every branch also cuts the GitHub release and bumps the Homebrew formula
+# when the ref is a tag. Nothing is ever released from a developer machine.
+on:
+  push:
+    tags:
+      - "v*"
+    branches:
+      - "main"
+      - "develop"
+      - "feature/*"
+  workflow_dispatch:
+
+# Jobs that need more than reading the repository ask for it themselves.
+permissions:
+  contents: read
+
+# A tag run is never cancelled, it is the one that publishes the release.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: ${{ !startsWith(github.ref, 'refs/tags/') }}
+
+env:
+  REGISTRY: ghcr.io
+  IMAGE_NAME: ${{ github.repository }}
+  # Archive and formula names the Homebrew tap already points at. Changing this
+  # breaks every published `brew install` URL.
+  PROJECT_NAME: firehose-stellar
+  BINARY_NAME: firestellar
+  # Only used to extract the CHANGELOG.md section that becomes the release notes,
+  # the release itself is driven by this workflow.
+  SFRELEASER_VERSION: v0.13.1
+
+jobs:
+  setup:
+    name: Setup
+    runs-on: ubuntu-24.04
+
+    outputs:
+      version: ${{ steps.version.outputs.VERSION }}
+      is-release: ${{ steps.version.outputs.IS_RELEASE }}
+      is-prerelease: ${{ steps.version.outputs.IS_PRERELEASE }}
+      binary-matrix: ${{ steps.matrix.outputs.MATRIX }}
+      changelog: ${{ steps.changelog.outputs.CHANGELOG }}
+
+    steps:
+      # A literal `edge` off a tag, not `edge-<sha>`: the per-architecture image
+      # tags below embed this string, and deployments reference them.
+      - name: Extract version
+        id: version
+        run: |
+          version="edge"
+          is_release="false"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            version="${GITHUB_REF#refs/tags/}"
+            # Only a tag PUSH publishes. workflow_dispatch accepts a tag in its ref
+            # selector, and that run is for re-validating the matrix — it must not
+            # re-upload assets over a published release or reopen the formula PR.
+            if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
+              is_release="true"
+            fi
+          fi
+
+          is_prerelease="false"
+          if [[ "${version}" == *alpha* || "${version}" == *beta* || "${version}" == *rc* ]]; then
+            is_prerelease="true"
+          fi
+
+          echo "VERSION=${version}" >> "$GITHUB_OUTPUT"
+          echo "IS_RELEASE=${is_release}" >> "$GITHUB_OUTPUT"
+          echo "IS_PRERELEASE=${is_prerelease}" >> "$GITHUB_OUTPUT"
+
+      # secrets are unreadable from a job-level `if`, so the check lives here, in the
+      # job every other one depends on: a tag that cannot finish the formula PR fails
+      # before an image or a release exists, rather than after they are public.
+      - name: Check tap token is available
+        if: steps.version.outputs.IS_RELEASE == 'true'
+        env:
+          TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          if [[ -z "${TAP_TOKEN}" ]]; then
+            echo "HOMEBREW_TAP_TOKEN is unset. It needs contents:write and pull-requests:write" >&2
+            echo "on streamingfast/homebrew-tap, and without it the formula PR cannot be opened." >&2
+            exit 1
+          fi
+
+      # Cross compiling every platform on each branch push is mostly wasted time,
+      # so only a release builds the full set. Everything else builds linux/amd64,
+      # enough to catch a broken build. A manual run also builds everything, which
+      # is how the full matrix gets validated before a tag is pushed.
+      #
+      # `archive_arch` is goreleaser's naming, which the tap's URLs already use:
+      # amd64 is published as x86_64.
+      - name: Compute binary matrix
+        id: matrix
+        env:
+          FULL_BUILD: ${{ steps.version.outputs.IS_RELEASE == 'true' || github.event_name == 'workflow_dispatch' }}
+        run: |
+          matrix=$(cat <<'JSON'
+          {"include": [
+            {"goos": "linux",  "goarch": "amd64", "archive_arch": "x86_64", "runner": "ubuntu-24.04",     "smoke": true},
+            {"goos": "linux",  "goarch": "arm64", "archive_arch": "arm64",  "runner": "ubuntu-24.04-arm", "smoke": true},
+            {"goos": "darwin", "goarch": "amd64", "archive_arch": "x86_64", "runner": "ubuntu-24.04",     "smoke": false},
+            {"goos": "darwin", "goarch": "arm64", "archive_arch": "arm64",  "runner": "ubuntu-24.04",     "smoke": false}
+          ]}
+          JSON
+          )
+
+          if [[ "${FULL_BUILD}" != "true" ]]; then
+            matrix=$(jq '{include: [.include[] | select(.goos == "linux" and .goarch == "amd64")]}' <<< "${matrix}")
+          fi
+
+          echo "MATRIX=$(jq --compact-output . <<< "${matrix}")" >> "$GITHUB_OUTPUT"
+
+      # Extracted here rather than in the release job so a tag whose CHANGELOG.md
+      # section is missing fails the run before any image is pushed, which is
+      # what sfreleaser does when it finds no section for the version.
+      - name: Extract changelog section
+        id: changelog
+        if: steps.version.outputs.IS_RELEASE == 'true'
+        # The URL carries the token, so it reaches sfreleaser's argv. Actions masks
+        # the value in logs, and it is the job-scoped GITHUB_TOKEN rather than a
+        # long-lived credential, but it is not hidden from the process table.
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ steps.version.outputs.VERSION }}
+        run: |
+          curl -sL "https://github.com/streamingfast/sfreleaser/releases/download/${SFRELEASER_VERSION}/sfreleaser_linux_x86_64.tar.gz" | tar -xz
+          chmod +x sfreleaser
+
+          ./sfreleaser changelog extract-section \
+            "github://token:${GH_TOKEN}@${GITHUB_REPOSITORY}/${GITHUB_SHA}/CHANGELOG.md" \
+            "${VERSION}" \
+            --github-output="CHANGELOG:$GITHUB_OUTPUT"
+
+  binaries:
+    name: Binary ${{ matrix.goos }}/${{ matrix.goarch }}
+    runs-on: ${{ matrix.runner }}
+    needs: [setup]
+
+    permissions:
+      contents: read
+
+    strategy:
+      fail-fast: false
+      matrix: ${{ fromJSON(needs.setup.outputs.binary-matrix) }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # streamingfast/actions/go-version would do this, but that repo is private and
+      # this one is public, so the action cannot be resolved from here. The `toolchain`
+      # directive wins over `go` when both are present, matching what the action does.
+      - name: Resolve Go version
+        id: go
+        run: |
+          set -euo pipefail
+
+          version=$(sed -n 's/^toolchain go//p' go.mod)
+          if [[ -z "${version}" ]]; then
+            version=$(sed -n 's/^go //p' go.mod)
+          fi
+          if [[ -z "${version}" ]]; then
+            echo "no go or toolchain directive found in go.mod" >&2
+            exit 1
+          fi
+
+          echo "MAJOR_MINOR=$(cut -d. -f1,2 <<< "${version}")" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      # The `binary` target stops short of the runtime stage, so extracting a
+      # binary never runs the stellar-core install and never needs emulation,
+      # whatever GOOS/GOARCH is asked for.
+      - name: Build binary
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: ./Dockerfile
+          target: binary
+          outputs: type=local,dest=dist
+          build-args: |
+            GO_VERSION=${{ steps.go.outputs.MAJOR_MINOR }}
+            GOOS=${{ matrix.goos }}
+            GOARCH=${{ matrix.goarch }}
+            VERSION=${{ needs.setup.outputs.version }}
+          cache-from: type=gha,scope=binary-${{ matrix.goos }}-${{ matrix.goarch }}
+          cache-to: type=gha,mode=max,scope=binary-${{ matrix.goos }}-${{ matrix.goarch }}
+
+      - name: Inspect binary
+        run: |
+          chmod +x "dist/${BINARY_NAME}"
+          file "dist/${BINARY_NAME}"
+
+      # Each linux job runs on a runner of its own architecture, so the binary it
+      # just produced can actually be executed here.
+      - name: Smoke test binary
+        if: matrix.smoke
+        run: ./dist/"${BINARY_NAME}" --version
+
+      # Archive layout is the tap's contract: a `<project>_<goos>_<arch>.tar.gz`
+      # holding the bare binary, which the formula's `bin.install` names.
+      - name: Package archive
+        env:
+          TARGET_OS: ${{ matrix.goos }}
+          ARCHIVE_ARCH: ${{ matrix.archive_arch }}
+        run: |
+          set -euo pipefail
+
+          archive="${PROJECT_NAME}_${TARGET_OS}_${ARCHIVE_ARCH}.tar.gz"
+          cp README.md dist/
+          tar -czf "${archive}" -C dist "${BINARY_NAME}" README.md
+          tar -tzvf "${archive}"
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ env.PROJECT_NAME }}_${{ matrix.goos }}_${{ matrix.archive_arch }}
+          path: ${{ env.PROJECT_NAME }}_*.tar.gz
+          if-no-files-found: error
+          retention-days: 7
+
+  docker:
+    name: Docker ${{ matrix.platform }}
+    runs-on: ${{ matrix.runner }}
+    # Serial with the binaries on purpose: pushing an image, and moving `latest`
+    # with it, for a tag whose binaries failed to build would leave a release
+    # half published.
+    needs: [setup, binaries]
+
+    permissions:
+      contents: read
+      packages: write
+
+    strategy:
+      # One runner per architecture, never a single multi-platform build. The
+      # runtime stage runs a shell to install stellar-core, so an arm64 image
+      # built on an amd64 host would go through QEMU; the arm64 branch of that
+      # RUN is a no-op but still has to execute. Native runners keep emulation
+      # out of the picture entirely.
+      matrix:
+        include:
+          - platform: linux/amd64
+            platform_suffix: amd64
+            runner: ubuntu-24.04
+
+          - platform: linux/arm64
+            platform_suffix: arm64
+            runner: ubuntu-24.04-arm
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      # streamingfast/actions/go-version would do this, but that repo is private and
+      # this one is public, so the action cannot be resolved from here. The `toolchain`
+      # directive wins over `go` when both are present, matching what the action does.
+      - name: Resolve Go version
+        id: go
+        run: |
+          set -euo pipefail
+
+          version=$(sed -n 's/^toolchain go//p' go.mod)
+          if [[ -z "${version}" ]]; then
+            version=$(sed -n 's/^go //p' go.mod)
+          fi
+          if [[ -z "${version}" ]]; then
+            echo "no go or toolchain directive found in go.mod" >&2
+            exit 1
+          fi
+
+          echo "MAJOR_MINOR=$(cut -d. -f1,2 <<< "${version}")" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        env:
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Generate docker tags/labels from github build context
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          # Having version in suffix (either edge or <tag>) prevents collision for tag images which have a different version
+          tags: |
+            type=sha,prefix=,suffix=-${{ needs.setup.outputs.version }}-${{ matrix.platform_suffix }}
+          flavor: |
+            suffix=-${{ matrix.platform_suffix }}
+
+      # provenance is off because the manifest join below expects each
+      # per-architecture tag to be a plain image manifest, not an index carrying
+      # attestations. This is also why streamingfast/actions/docker-build is not
+      # used here: it has no input for it.
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          provenance: false
+          build-args: |
+            GO_VERSION=${{ steps.go.outputs.MAJOR_MINOR }}
+            VERSION=${{ needs.setup.outputs.version }}
+          # Deliberately uncached. The stellar-core install sits above any COPY, so its
+          # layer key is just the base digest and the ARG values — a cache hit would
+          # skip apt AND the STELLAR_CORE_MIN_VERSION assertion, pinning the image to
+          # whatever core was current when the layer was first built. Since the floor
+          # is a floor and not a pin, a later SDF security release would never be
+          # picked up and nothing would say so.
+
+  docker-manifest:
+    name: Docker manifest
+    runs-on: ubuntu-24.04
+    needs: [setup, docker]
+
+    permissions:
+      contents: read
+      packages: write
+
+    outputs:
+      tags: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Log in to the Container registry
+        uses: docker/login-action@v3
+        env:
+          REGISTRY_PASSWORD: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ env.REGISTRY_PASSWORD }}
+
+      - name: Generate docker tags/labels from github build context
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}
+          tags: |
+            type=ref,event=tag
+            type=sha,prefix=
+            type=raw,enable=${{ github.ref == 'refs/heads/main' }},value=main
+            type=raw,enable=${{ github.ref == 'refs/heads/develop' }},value=develop
+            type=raw,enable=${{ startsWith(github.ref, 'refs/heads/feature/') }},value={{branch}}
+          flavor: |
+            latest=${{ startsWith(github.ref, 'refs/tags/') && needs.setup.outputs.is-prerelease == 'false' }}
+          sep-tags: ","
+
+      - name: Extract image
+        id: image
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        run: |
+          echo "ID=${REGISTRY}/${IMAGE_NAME}:${GITHUB_SHA::7}-${VERSION}" >> "$GITHUB_OUTPUT"
+
+      - name: Create and push manifest images
+        uses: Noelware/docker-manifest-action@v1
+        with:
+          inputs: "${{ steps.image.outputs.ID }}-amd64, ${{ steps.image.outputs.ID }}-arm64"
+          tags: "${{ steps.meta.outputs.tags }}"
+          push: true
+
+  release:
+    name: Release
+    runs-on: ubuntu-24.04
+    needs: [setup, binaries, docker-manifest]
+    if: needs.setup.outputs.is-release == 'true'
+
+    permissions:
+      contents: write
+
+    steps:
+      # docker/build-push-action uploads a build record artifact of its own
+      # (<owner>.<repo>.<id>.dockerbuild), so the pattern is required to keep it
+      # out of the release assets.
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: ${{ env.PROJECT_NAME }}_*
+          merge-multiple: true
+
+      # No checksums.txt: GitHub records a sha256 `digest` per release asset and
+      # serves it from the releases API, so shipping our own would be a second,
+      # weaker copy of the same fact. The formula computes its hashes from the
+      # archives directly rather than reading a file.
+      - name: Create release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          body: ${{ needs.setup.outputs.changelog }}
+          prerelease: ${{ needs.setup.outputs.is-prerelease == 'true' }}
+
+  homebrew:
+    name: Homebrew formula
+    runs-on: ubuntu-24.04
+    needs: [setup, release]
+    # A prerelease must not become what `brew install firehose-stellar` resolves
+    # to; goreleaser skipped the tap for those too.
+    if: needs.setup.outputs.is-release == 'true' && needs.setup.outputs.is-prerelease == 'false'
+
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          pattern: ${{ env.PROJECT_NAME }}_*
+          merge-multiple: true
+
+      # The formula is rendered here rather than by goreleaser so the release
+      # assets have exactly one producer. Shape and asset URLs are unchanged from
+      # the goreleaser-generated file, so an existing install upgrades in place.
+      - name: Render formula
+        env:
+          VERSION: ${{ needs.setup.outputs.version }}
+        working-directory: artifacts
+        run: |
+          set -euo pipefail
+
+          bare_version="${VERSION#v}"
+          base_url="https://github.com/${GITHUB_REPOSITORY}/releases/download/${VERSION}"
+
+          # Resolved before the heredoc: a command substitution that fails inside
+          # one does not stop the script, and would silently emit an empty sha256.
+          for target in darwin_x86_64 darwin_arm64 linux_x86_64 linux_arm64; do
+            file="${PROJECT_NAME}_${target}.tar.gz"
+            if [[ ! -f "${file}" ]]; then
+              echo "missing release archive ${file}, refusing to publish the formula" >&2
+              exit 1
+            fi
+            declare "sha_${target}=$(sha256sum "${file}" | cut -d' ' -f1)"
+          done
+
+          cat > formula.rb <<EOF
+          # typed: false
+          # frozen_string_literal: true
+
+          # Generated by .github/workflows/release.yml on tag push. DO NOT EDIT.
+          class FirehoseStellar < Formula
+            desc "Firehose and Substreams support for the Stellar blockchain"
+            homepage "https://github.com/${GITHUB_REPOSITORY}"
+            version "${bare_version}"
+            license "Apache-2.0"
+
+            on_macos do
+              if Hardware::CPU.intel?
+                url "${base_url}/${PROJECT_NAME}_darwin_x86_64.tar.gz"
+                sha256 "${sha_darwin_x86_64}"
+
+                define_method(:install) do
+                  bin.install "${BINARY_NAME}"
+                end
+              end
+              if Hardware::CPU.arm?
+                url "${base_url}/${PROJECT_NAME}_darwin_arm64.tar.gz"
+                sha256 "${sha_darwin_arm64}"
+
+                define_method(:install) do
+                  bin.install "${BINARY_NAME}"
+                end
+              end
+            end
+
+            on_linux do
+              if Hardware::CPU.intel? && Hardware::CPU.is_64_bit?
+                url "${base_url}/${PROJECT_NAME}_linux_x86_64.tar.gz"
+                sha256 "${sha_linux_x86_64}"
+                define_method(:install) do
+                  bin.install "${BINARY_NAME}"
+                end
+              end
+              if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
+                url "${base_url}/${PROJECT_NAME}_linux_arm64.tar.gz"
+                sha256 "${sha_linux_arm64}"
+                define_method(:install) do
+                  bin.install "${BINARY_NAME}"
+                end
+              end
+            end
+          end
+          EOF
+
+          cat formula.rb
+
+      # The tap's default branch refuses direct commits — its protection requires a
+      # pull request and two passing checks, which is what made goreleaser's brew
+      # step fail with a 409. So the bump goes onto a branch and opens a PR.
+      #
+      # A cross-repository write, which GITHUB_TOKEN cannot do: HOMEBREW_TAP_TOKEN
+      # needs contents:write and pull-requests:write on the tap. The git/contents
+      # APIs are used instead of a clone so the tap never has to be checked out.
+      - name: Open formula PR against the tap
+        env:
+          GH_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          VERSION: ${{ needs.setup.outputs.version }}
+          TAP_REPO: streamingfast/homebrew-tap
+        working-directory: artifacts
+        run: |
+          set -euo pipefail
+
+          branch="bump/${PROJECT_NAME}-${VERSION}"
+          base=$(gh api "repos/${TAP_REPO}" --jq '.default_branch')
+          base_sha=$(gh api "repos/${TAP_REPO}/git/ref/heads/${base}" --jq '.object.sha')
+
+          # Re-running this job after a failure has to land on the branch the first
+          # attempt left behind rather than die on an existing ref.
+          if gh api "repos/${TAP_REPO}/git/ref/heads/${branch}" >/dev/null 2>&1; then
+            gh api --method PATCH "repos/${TAP_REPO}/git/refs/heads/${branch}" \
+              -F sha="${base_sha}" -F force=true
+          else
+            gh api --method POST "repos/${TAP_REPO}/git/refs" \
+              -f ref="refs/heads/${branch}" -f sha="${base_sha}"
+          fi
+
+          file_sha=$(gh api "repos/${TAP_REPO}/contents/${PROJECT_NAME}.rb?ref=${branch}" --jq '.sha')
+
+          gh api --method PUT "repos/${TAP_REPO}/contents/${PROJECT_NAME}.rb" \
+            -f message="chore: update ${PROJECT_NAME} to ${VERSION}" \
+            -f content="$(base64 -w0 formula.rb)" \
+            -f sha="${file_sha}" \
+            -f branch="${branch}"
+
+          url=$(gh pr list --repo "${TAP_REPO}" --head "${branch}" --state open --json url --jq '.[0].url')
+          if [[ -z "${url}" ]]; then
+            url=$(gh pr create --repo "${TAP_REPO}" --base "${base}" --head "${branch}" \
+              --title "chore: update ${PROJECT_NAME} to ${VERSION}" \
+              --body "Formula bump for ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/tag/${VERSION}.")
+          fi
+
+          # The tap has auto-merge disabled, so this PR waits on a human. Until it
+          # merges, `brew install` keeps serving the previous version — the release
+          # itself is already complete and unaffected.
+          echo "Homebrew formula PR: ${url}" >> "$GITHUB_STEP_SUMMARY"
+          echo "::notice title=Homebrew formula PR::${url} — merge it or brew stays on the previous version"
+
+  slack-notifications:
+    name: Slack notification
+    runs-on: ubuntu-24.04
+    # `release` is skipped on branch pushes, which is a pass — but on a tag the notice
+    # must not claim success while the release itself failed.
+    needs: [docker-manifest, release]
+    if: >-
+      always()
+      && needs.docker-manifest.result == 'success'
+      && (needs.release.result == 'success' || needs.release.result == 'skipped')
+
+    steps:
+      - name: Slack notification
+        env:
+          SLACK_WEBHOOK: ${{ secrets.SLACK_WEBHOOK }}
+        uses: Ilshidur/action-slack@2.0.2
+        with:
+          args: |
+            :done: *${{ github.repository }}* Success building docker images from ${{ github.ref_type }} _${{ github.ref_name }}_ (${{ github.actor }}) :sparkling_heart: ```${{ needs.docker-manifest.outputs.tags }}```

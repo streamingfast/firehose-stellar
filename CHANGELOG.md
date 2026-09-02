@@ -1,11 +1,13 @@
 # Change log
 
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/), and this
-project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See [MAINTAINERS.md](./MAINTAINERS.md)
-for instructions to keep up to date.
+project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See the
+[Releasing](./README.md#releasing) section for how a version is cut.
 
 ## Unreleased
 
+* Releases no longer carry a `checksums.txt` asset. GitHub records a sha256 `digest` for every release asset and serves it from the releases API, so the file was a second copy of the same fact. Anything verifying downloads against it should read the digest from the API instead.
+* Published binaries are now built with `CGO_ENABLED=0` and are statically linked, where previous releases were dynamically linked against glibc. Name resolution therefore goes through Go's pure resolver rather than the system NSS modules, which matters only where `nsswitch.conf` routes hosts somewhere other than DNS and files. Archive contents, names and sizes are otherwise unchanged.
 * The Docker images are built on `firehose-core` v1.18.0, up from v1.14.1, matching the library version in `go.mod`. The entrypoint `firecore` binary comes from that base image, so it had been running four minors behind the `firehose-core` that `firestellar` is compiled against. Everything operator-visible between the two releases is `substreams-tier1`/`tier2` server work, none of which a reader deployment passes — the removed `--substreams-tier2-hosted-store-registry-address` included. The base OS is Ubuntu noble in both, so the bundled `stellar-core` install from SDF's apt repo is unaffected.
 
 ## v1.2.1
