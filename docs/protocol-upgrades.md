@@ -24,6 +24,22 @@ value we do not model, the other inside transaction XDR we do not interpret. A l
 carrying `STELLAR_VALUE_EMPTY_TX_SET` becomes a `Block` with no transactions, which is
 what it is.
 
+## Protocol 29
+
+- SDK: no protocol bump. P29 has no XDR change
+  ([stellar-horizon#234](https://github.com/stellar/stellar-horizon/pull/234)); the move
+  from v0.7.2 to v0.7.3 was a routine dependency update
+- Core: `stellar-core >= 29.0.0-3589.4eb833373`, which also carries SDF's September 2026
+  critical security fix. SDF announced both to node operators on 2026-09-24, ahead of any
+  public tag: the binary reports itself as a "non-release version" until the v29.0.0 tag
+  is pushed
+- Votes: testnet 2026-09-29, mainnet 2026-10-01 (per the same announcement; times not yet
+  published)
+
+The millisecond close-time `StellarValue` arms (`STELLAR_VALUE_SIGNED_MS`,
+`STELLAR_VALUE_EMPTY_TX_SET_MS`, CAP-0088) are on stellar-xdr `main` behind
+`MS_CLOSE_TIME` and are not part of P29.
+
 ## Protocol 28
 
 - SDK: `go-stellar-sdk` v0.7.2 (protocol support landed in v0.7.0)
@@ -76,7 +92,7 @@ the upgrade ledger, or that still carries a bug SDF has already patched:
 
 - `go.mod` — the SDK release whose changelog names the target protocol
 - `Dockerfile` — `ARG STELLAR_CORE_MIN_VERSION`, using the apt version string with the
-  codename suffix stripped (`28.0.1-3508.947aad841`, not `…​.noble`). Confirm it exists at
+  codename suffix stripped (`29.0.0-3589.4eb833373`, not `…​.noble`). Confirm it exists at
   `https://apt.stellar.org/dists/<codename>/stable/binary-amd64/Packages` for the codename
   of the `firehose-core` base image
 - `test/README.md` — the required-minimum line

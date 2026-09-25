@@ -70,12 +70,12 @@ If `stellar-core` is not on `$PATH`, the captive-core fetcher silently disables 
 - `docker` + `docker compose` plugin (for quickstart)
 - `go` 1.26+
 - `stellar-core` binary on `$PATH` (for captive-core in-process fetcher)
-  - Required minimum: **`28.0.1-3508.947aad841`** (SDF's August 2026 critical security fix; anything below 28.0.0 additionally halts at the P28 upgrade ledger)
+  - Required minimum: **`29.0.0-3589.4eb833373`** (SDF's September 2026 critical security fix; anything below 29.0.0 also halts at the P29 upgrade ledger)
   - macOS: `brew upgrade stellar/sdf/stellar-core` (or `brew install` for first-time)
   - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org); run `apt update && apt install --only-upgrade stellar-core` on existing hosts to pick up the patched build
   - Override location via `STELLAR_CORE_BIN=/path/to/stellar-core`
 
-The stellar-core version must be protocol-compatible with the quickstart image — same major version is the safest match. The compose stack pulls `stellar/quickstart:testing` with `pull_policy: always` (override via `QUICKSTART_PULL_POLICY=missing`) so the bundled stellar-core stays current with SDF's patched release.
+The host stellar-core must be the quickstart validator's major version or newer: a newer core follows the older protocol until the upgrade vote. The quickstart images can trail the apt channel by a release (they still bundled 28.0.1 when 29.0.0 shipped). The compose stack pulls `stellar/quickstart:testing` with `pull_policy: always` (override via `QUICKSTART_PULL_POLICY=missing`) so the bundled stellar-core stays current with SDF's latest published image.
 
 ### Testing an unreleased protocol
 
