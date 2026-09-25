@@ -4,8 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See the
 [Releasing](./README.md#releasing) section for how a version is cut.
 
-## Unreleased
+## v1.3.0
 
+* Support Stellar Protocol 29: require `stellar-core >= 29.0.0-3589.4eb833373`, which also carries SDF's fix for the September 2026 critical security advisory. An older captive-core halts at the P29 upgrade ledger (testnet vote 2026-09-29, mainnet vote 2026-10-01). P29 has no XDR change. The amd64 Docker image installs the new core from the SDF `stable` apt channel. Operators supplying their own binary, whether on arm64 images (which ship without one) or through `--stellar-core-bin`, must upgrade that binary themselves.
+* `go-stellar-sdk` moves from v0.7.2 to v0.7.3. It adds no protocol support, and the `processors/token_transfer` fixes it carries do not reach `firestellar`, which does not import that package.
 * Releases no longer carry a `checksums.txt` asset. GitHub records a sha256 `digest` for every release asset and serves it from the releases API, so the file was a second copy of the same fact. Anything verifying downloads against it should read the digest from the API instead.
 * Published binaries are now built with `CGO_ENABLED=0` and are statically linked, where previous releases were dynamically linked against glibc. Name resolution therefore goes through Go's pure resolver rather than the system NSS modules, which matters only where `nsswitch.conf` routes hosts somewhere other than DNS and files. Archive contents, names and sizes are otherwise unchanged.
 * The Docker images are built on `firehose-core` v1.18.0, up from v1.14.1, matching the library version in `go.mod`. The entrypoint `firecore` binary comes from that base image, so it had been running four minors behind the `firehose-core` that `firestellar` is compiled against. Everything operator-visible between the two releases is `substreams-tier1`/`tier2` server work, none of which a reader deployment passes — the removed `--substreams-tier2-hosted-store-registry-address` included. The base OS is Ubuntu noble in both, so the bundled `stellar-core` install from SDF's apt repo is unaffected.
