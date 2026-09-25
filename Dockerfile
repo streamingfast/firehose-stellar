@@ -49,18 +49,18 @@ ARG BINARY_NAME=firestellar
 # and require mounting a binary at /usr/bin/stellar-core or overriding
 # --stellar-core-bin. The RPC fetcher works on arm64 without stellar-core.
 #
-# Protocol 28 requires stellar-core 28.0.x: an older captive-core halts at the
-# P28 upgrade ledger (testnet vote 2026-08-27, mainnet vote 2026-09-16) instead
-# of following the network. 28.0.1 is SDF's fix for the August 2026 critical
-# security advisory and is the floor every node on the network is asked to run.
-# The build pulls from SDF's `stable` apt channel, which ships that release;
-# rebuilds pick it up automatically.
+# Protocol 29 requires stellar-core 29.0.x: an older captive-core halts at the
+# P29 upgrade ledger (testnet vote 2026-09-29, mainnet vote 2026-10-01) instead
+# of following the network. 29.0.0 also carries SDF's fix for the September 2026
+# critical security advisory and is the floor every node on the network is asked
+# to run. The build pulls from SDF's `stable` apt channel, which ships that
+# release; rebuilds pick it up automatically.
 # STELLAR_CORE_MIN_VERSION is asserted post-install to fail the build loudly
 # if the apt index is pinned/cached to a package below the floor somehow.
 # The bound is intentionally codename-agnostic (no `.noble`/`.jammy` suffix)
 # so the dpkg comparison holds whatever Ubuntu base firehose-core ships.
 ARG TARGETARCH
-ARG STELLAR_CORE_MIN_VERSION=28.0.1-3508.947aad841
+ARG STELLAR_CORE_MIN_VERSION=29.0.0-3589.4eb833373
 RUN set -eux; \
     if [ "${TARGETARCH}" = "amd64" ]; then \
         apt-get update; \
@@ -77,7 +77,7 @@ RUN set -eux; \
         stellar-core version; \
         INSTALLED=$(dpkg-query -W -f='${Version}' stellar-core); \
         if ! dpkg --compare-versions "${INSTALLED}" ge "${STELLAR_CORE_MIN_VERSION}"; then \
-            echo "stellar-core ${INSTALLED} is older than required ${STELLAR_CORE_MIN_VERSION}; refusing to build (the floor covers both Protocol 28 support and SDF's August 2026 security fix)." >&2; \
+            echo "stellar-core ${INSTALLED} is older than required ${STELLAR_CORE_MIN_VERSION}; refusing to build (the floor covers both Protocol 29 support and SDF's September 2026 security fix)." >&2; \
             exit 1; \
         fi; \
     else \
