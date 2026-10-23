@@ -70,7 +70,7 @@ If `stellar-core` is not on `$PATH`, the captive-core fetcher silently disables 
 - `docker` + `docker compose` plugin (for quickstart)
 - `go` 1.26+
 - `stellar-core` binary on `$PATH` (for captive-core in-process fetcher)
-  - Required minimum: **`29.0.0-3589.4eb833373`** (SDF's September 2026 critical security fix; anything below 29.0.0 also halts at the P29 upgrade ledger)
+  - Required minimum: **`30.0.0-3642.0e49751aa`** (anything below 30.0.0 halts at the P30 upgrade ledger)
   - macOS: `brew upgrade stellar/sdf/stellar-core` (or `brew install` for first-time)
   - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org); run `apt update && apt install --only-upgrade stellar-core` on existing hosts to pick up the patched build
   - Override location via `STELLAR_CORE_BIN=/path/to/stellar-core`

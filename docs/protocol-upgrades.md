@@ -19,10 +19,36 @@ a matching SDK. `Header` models only `ledger_version`, `previous_ledger_hash`,
 `total_coins`, `base_fee` and `base_reserve`; the SCP value is not part of it, and the
 only field read off it is `closeTime`, for the block timestamp.
 
-That is why CAP-0083 and CAP-0085 below needed no `.proto` change: one lives in the SCP
-value we do not model, the other inside transaction XDR we do not interpret. A ledger
+That is why CAP-0083, CAP-0085 and CAP-0088 below needed no `.proto` change: CAP-0083 and
+CAP-0088 live in the SCP value we do not model, CAP-0085 inside transaction XDR we do not
+interpret. A ledger
 carrying `STELLAR_VALUE_EMPTY_TX_SET` becomes a `Block` with no transactions, which is
 what it is.
+
+## Protocol 30 ("Bell")
+
+- SDK: `go-stellar-sdk` v0.8.0
+- Core: `stellar-core >= 30.0.0-3642.0e49751aa`
+- Votes: testnet 2026-11-03 1700 UTC, mainnet 2026-11-23 1700 UTC
+- [SDF upgrade guide](https://stellar.org/blog/developers/bell-protocol-30-upgrade-guide)
+
+XDR the pre-P30 SDK cannot decode:
+
+- **CAP-0088** — millisecond close time: `STELLAR_VALUE_SIGNED_MS` and
+  `STELLAR_VALUE_EMPTY_TX_SET_MS`, two more `StellarValueType` arms carrying `closeTimeMs`.
+  Every ledger after the upgrade ledger uses one of them, so an older SDK fails on the
+  ledger header itself rather than on a rare transaction. `closeTime` keeps its meaning
+  (`closeTimeMs / 1000`), so block timestamps stay at second precision and `Header` is
+  unchanged.
+- **CAP-0084** — muxed contract addresses: `SC_ADDRESS_TYPE_MUXED_CONTRACT`, a new
+  `ScAddress` arm rendered as a `W…` strkey. It appears only inside transaction XDR and
+  events, which reach consumers as opaque bytes.
+- **CAP-0087** — ML-DSA signature verification host functions, with `ContractCostType`
+  values 86–94. Cost params are positional, so these decoded before; only the names are new.
+
+v0.8.0 also widens contract spec names to 1024 bytes (`ScSpecEventV0.Name` becomes a
+`string`) and removes the `historyarchive` on-disk bucket cache. No caller in this repo is
+affected.
 
 ## Protocol 29
 
