@@ -32,7 +32,6 @@ jobs:
 
     outputs:
       version: ${{ steps.version.outputs.VERSION }}
-      is-release: ${{ steps.version.outputs.IS_RELEASE }}
       is-prerelease: ${{ steps.version.outputs.IS_PRERELEASE }}
       binary-matrix: ${{ steps.matrix.outputs.MATRIX }}
 
@@ -43,12 +42,8 @@ jobs:
         id: version
         run: |
           version="edge"
-          is_release="false"
           if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
             version="${GITHUB_REF#refs/tags/}"
-            if [[ "${GITHUB_EVENT_NAME}" == "push" ]]; then
-              is_release="true"
-            fi
           fi
 
           is_prerelease="false"
@@ -57,17 +52,15 @@ jobs:
           fi
 
           echo "VERSION=${version}" >> "$GITHUB_OUTPUT"
-          echo "IS_RELEASE=${is_release}" >> "$GITHUB_OUTPUT"
           echo "IS_PRERELEASE=${is_prerelease}" >> "$GITHUB_OUTPUT"
 
-      # Cross compiling every platform on each branch push is mostly wasted time,
-      # so only a release builds the full set. Everything else builds linux/amd64,
-      # enough to catch a broken build. A manual run also builds everything, which
-      # is how the full matrix gets validated before a tag is pushed.
+      # Release binaries are built by sfreleaser in draft-release.yml, so a push only
+      # builds linux/amd64, enough to catch a broken build. A manual run builds every
+      # platform.
       - name: Compute binary matrix
         id: matrix
         env:
-          FULL_BUILD: ${{ steps.version.outputs.IS_RELEASE == 'true' || github.event_name == 'workflow_dispatch' }}
+          FULL_BUILD: ${{ github.event_name == 'workflow_dispatch' }}
         run: |
           matrix=$(cat <<'JSON'
           {"include": [
@@ -155,10 +148,7 @@ jobs:
   docker:
     name: Docker ${{ matrix.platform }}
     runs-on: ${{ matrix.runner }}
-    # Serial with the binaries on purpose: pushing an image, and moving `latest`
-    # with it, for a tag whose binaries failed to build would leave a release
-    # half published.
-    needs: [setup, binaries]
+    needs: [setup]
 
     permissions:
       contents: read
