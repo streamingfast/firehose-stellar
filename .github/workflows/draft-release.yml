@@ -61,6 +61,12 @@ jobs:
             exit 0
           fi
 
+          first=$(grep -m1 -E '^##[^#]' "$CHANGELOG_PATH" | detect)
+          if [[ "v${first#v}" != "$version" ]]; then
+            echo "::error::$version must be the first section of $CHANGELOG_PATH, the release notes are taken from the first section"
+            exit 1
+          fi
+
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Set up Go

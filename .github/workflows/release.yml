@@ -23,9 +23,6 @@ concurrency:
 env:
   REGISTRY: ghcr.io
   IMAGE_NAME: ${{ github.repository }}
-  # Archive and formula names the Homebrew tap already points at. Changing this
-  # breaks every published `brew install` URL.
-  PROJECT_NAME: firehose-stellar
   BINARY_NAME: firestellar
 
 jobs:
@@ -67,9 +64,6 @@ jobs:
       # so only a release builds the full set. Everything else builds linux/amd64,
       # enough to catch a broken build. A manual run also builds everything, which
       # is how the full matrix gets validated before a tag is pushed.
-      #
-      # `archive_arch` is goreleaser's naming, which the tap's URLs already use:
-      # amd64 is published as x86_64.
       - name: Compute binary matrix
         id: matrix
         env:
@@ -77,10 +71,10 @@ jobs:
         run: |
           matrix=$(cat <<'JSON'
           {"include": [
-            {"goos": "linux",  "goarch": "amd64", "archive_arch": "x86_64", "runner": "ubuntu-24.04",     "smoke": true},
-            {"goos": "linux",  "goarch": "arm64", "archive_arch": "arm64",  "runner": "ubuntu-24.04-arm", "smoke": true},
-            {"goos": "darwin", "goarch": "amd64", "archive_arch": "x86_64", "runner": "ubuntu-24.04",     "smoke": false},
-            {"goos": "darwin", "goarch": "arm64", "archive_arch": "arm64",  "runner": "ubuntu-24.04",     "smoke": false}
+            {"goos": "linux",  "goarch": "amd64", "runner": "ubuntu-24.04",     "smoke": true},
+            {"goos": "linux",  "goarch": "arm64", "runner": "ubuntu-24.04-arm", "smoke": true},
+            {"goos": "darwin", "goarch": "amd64", "runner": "ubuntu-24.04",     "smoke": false},
+            {"goos": "darwin", "goarch": "arm64", "runner": "ubuntu-24.04",     "smoke": false}
           ]}
           JSON
           )
@@ -157,28 +151,6 @@ jobs:
       - name: Smoke test binary
         if: matrix.smoke
         run: ./dist/"${BINARY_NAME}" --version
-
-      # Archive layout is the tap's contract: a `<project>_<goos>_<arch>.tar.gz`
-      # holding the bare binary, which the formula's `bin.install` names.
-      - name: Package archive
-        env:
-          TARGET_OS: ${{ matrix.goos }}
-          ARCHIVE_ARCH: ${{ matrix.archive_arch }}
-        run: |
-          set -euo pipefail
-
-          archive="${PROJECT_NAME}_${TARGET_OS}_${ARCHIVE_ARCH}.tar.gz"
-          cp README.md dist/
-          tar -czf "${archive}" -C dist "${BINARY_NAME}" README.md
-          tar -tzvf "${archive}"
-
-      - name: Upload artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: ${{ env.PROJECT_NAME }}_${{ matrix.goos }}_${{ matrix.archive_arch }}
-          path: ${{ env.PROJECT_NAME }}_*.tar.gz
-          if-no-files-found: error
-          retention-days: 7
 
   docker:
     name: Docker ${{ matrix.platform }}

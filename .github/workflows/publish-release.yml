@@ -24,7 +24,7 @@ env:
 
 jobs:
   homebrew:
-    if: ${{ !github.event.release.prerelease }}
+    if: ${{ !github.event.release.prerelease && !contains(inputs.tag || github.event.release.tag_name, '-') }}
     runs-on: ubuntu-24.04
     defaults:
       run:

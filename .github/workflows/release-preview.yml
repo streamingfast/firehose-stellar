@@ -48,6 +48,12 @@ jobs:
             exit 0
           fi
 
+          first=$(grep -m1 -E '^##[^#]' "$CHANGELOG_PATH" | detect)
+          if [[ "v${first#v}" != "$version" ]]; then
+            echo "::error::$version must be the first section of $CHANGELOG_PATH, the release notes are taken from the first section"
+            exit 1
+          fi
+
           last_tag=$(git tag --list 'v*' --sort=-v:refname --merged "$BASE_SHA" | head -n1)
           notes=$(awk '/^##[^#]/ { if (found) exit; found=1; next } found' "$CHANGELOG_PATH" | sed '/./,$!d')
           if [[ -n "$last_tag" ]]; then
