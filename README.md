@@ -47,24 +47,17 @@ The cursor schema is shared between the two backends, so a single state director
 
 ## Releasing
 
-A release is a tag push. `.github/workflows/release.yml` builds the binaries, pushes the
-images, creates the GitHub release and opens the Homebrew formula PR. Nothing is released
-from a developer machine — do not run `sfreleaser release`.
+Releases run in CI, do not run `sfreleaser release` locally.
 
-1. Retitle the `## Unreleased` section of [CHANGELOG.md](CHANGELOG.md) to `## vX.Y.Z` and
-   merge that. The tag run reads its release notes from that section and fails before
-   building anything if it is missing.
-2. Tag `main` and push it:
+1. Open a PR retitling the `## Unreleased` section of [CHANGELOG.md](CHANGELOG.md) to
+   `## vX.Y.Z`. A comment on the PR shows the release notes and the commits going out.
+2. Merge it. `.github/workflows/draft-release.yml` creates a draft GitHub release with the
+   binaries.
+3. Review the draft and publish it. Publishing creates the tag, which pushes the Docker
+   images, and `.github/workflows/publish-release.yml` updates the Homebrew formula.
 
-   ```bash
-   git tag vX.Y.Z && git push origin vX.Y.Z
-   ```
-
-3. Merge the formula PR the run opens against `streamingfast/homebrew-tap`. It is not
-   auto-merged, and until it lands `brew install` serves the previous version.
-
-`workflow_dispatch` runs the full build without publishing anything, which is how the
-cross-compile matrix gets validated before a tag exists.
+`workflow_dispatch` on `release.yml` runs the full cross-compile build without publishing
+anything.
 
 ## Contributing
 
