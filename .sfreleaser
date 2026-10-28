@@ -4,3 +4,5 @@ global:
   variant: application
 release:
   goreleaser-docker-image: goreleaser/goreleaser-cross:v1.26
+  cgo-disabled: true
+  checksums-disabled: true
