@@ -57,6 +57,20 @@ jobs:
           go build ./...
           go test ./...
 
+      # quickstart boots on its image's default protocol, which can lag the
+      # network by more than one release. Run the battlefield again on the
+      # newest protocol both the bundled and the host stellar-core support, so
+      # the next protocol's ledgers go through both fetchers before its vote.
+      - name: Battlefield on the newest supported protocol
+        run: |-
+          set -eu
+          max_protocol() { awk '/^ledger protocol version:/ {print $4}'; }
+          image=$(docker run --rm --platform linux/amd64 --entrypoint /usr/bin/stellar-core stellar/quickstart:testing version | max_protocol)
+          host=$(stellar-core version | max_protocol)
+          protocol=$(( image < host ? image : host ))
+          echo "image core supports ${image}, host core ${host}; upgrading quickstart to ${protocol}"
+          QUICKSTART_PROTOCOL_VERSION=${protocol} go test -count=1 ./test/scenarios/...
+
       # The battlefield suite writes stellar-core's own output to file so the
       # test log stays readable, which leaves a CI failure with no way to see
       # why a fetcher produced nothing.

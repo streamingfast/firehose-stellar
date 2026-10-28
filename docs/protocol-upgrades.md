@@ -19,10 +19,35 @@ a matching SDK. `Header` models only `ledger_version`, `previous_ledger_hash`,
 `total_coins`, `base_fee` and `base_reserve`; the SCP value is not part of it, and the
 only field read off it is `closeTime`, for the block timestamp.
 
-That is why CAP-0083 and CAP-0085 below needed no `.proto` change: one lives in the SCP
-value we do not model, the other inside transaction XDR we do not interpret. A ledger
-carrying `STELLAR_VALUE_EMPTY_TX_SET` becomes a `Block` with no transactions, which is
-what it is.
+That is why CAP-0083, CAP-0085 and CAP-0088 below needed no `.proto` change: CAP-0083 and
+CAP-0088 live in the SCP value we do not model, CAP-0085 inside transaction XDR we do not
+interpret. A ledger carrying `STELLAR_VALUE_EMPTY_TX_SET` or `STELLAR_VALUE_EMPTY_TX_SET_MS`
+becomes a `Block` with no transactions, which is what it is.
+
+## Protocol 30 ("Bell")
+
+- SDK: `go-stellar-sdk` v0.8.0
+- Core: `stellar-core >= 30.0.0-3642.0e49751aa`
+- Votes: testnet 2026-11-03 1700 UTC, mainnet 2026-11-23 1700 UTC
+- [SDF upgrade guide](https://stellar.org/blog/developers/bell-protocol-30-upgrade-guide)
+
+XDR the pre-P30 SDK cannot decode:
+
+- **CAP-0088** — millisecond close time: `STELLAR_VALUE_SIGNED_MS` and
+  `STELLAR_VALUE_EMPTY_TX_SET_MS`, two more `StellarValueType` arms carrying `closeTimeMs`.
+  Every ledger after the upgrade ledger uses one of them, so an older SDK fails on the
+  ledger header itself rather than on a rare transaction. `closeTime` keeps its meaning
+  (`closeTimeMs / 1000`), so block timestamps stay at second precision and `Header` is
+  unchanged.
+- **CAP-0084** — muxed contract addresses: `SC_ADDRESS_TYPE_MUXED_CONTRACT`, a new
+  `ScAddress` arm rendered as a `W…` strkey. It appears only inside transaction XDR and
+  events, which reach consumers as opaque bytes.
+- **CAP-0087** — ML-DSA signature verification host functions, with `ContractCostType`
+  values 86–94. Cost params are positional, so these decoded before; only the names are new.
+
+v0.8.0 also widens contract spec names to 1024 bytes (`ScSpecEventV0.Name` becomes a
+`string`) and removes the `historyarchive` on-disk bucket cache. No caller in this repo is
+affected.
 
 ## Protocol 29
 
@@ -92,11 +117,10 @@ the upgrade ledger, or that still carries a bug SDF has already patched:
 
 - `go.mod` — the SDK release whose changelog names the target protocol
 - `Dockerfile` — `ARG STELLAR_CORE_MIN_VERSION`, using the apt version string with the
-  codename suffix stripped (`29.0.0-3589.4eb833373`, not `…​.noble`). Confirm it exists at
+  codename suffix stripped (`30.0.0-3642.0e49751aa`, not `…​.noble`). Confirm it exists at
   `https://apt.stellar.org/dists/<codename>/stable/binary-amd64/Packages` for the codename
   of the `firehose-core` base image
 - `test/README.md` — the required-minimum line
-- `test/scripts/dev/docker-compose.yml` — the quickstart pin comment
 - `CHANGELOG.md` and this file
 
 Then check whether the new XDR adds union arms the code switches on: `captivecore` and
@@ -107,7 +131,6 @@ floor moves. Record it inline on the protocol section it lands under, the way 28
 recorded on Protocol 28. The earlier 26.1.0 bump predates that convention and sits under
 "Earlier" instead.
 
-`stellar/quickstart:testing` tracks whatever protocol testnet currently runs, so before
-the testnet vote it still boots the previous protocol. Use
-`QUICKSTART_IMAGE=stellar/quickstart:future` to exercise the new one — see
-[test/README.md](../test/README.md).
+The battlefield's quickstart network boots on its image's default protocol, which lags the
+network. CI also runs it on the newest protocol both stellar-core binaries support; set
+`QUICKSTART_PROTOCOL_VERSION` to do the same locally. See [test/README.md](../test/README.md).

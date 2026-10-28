@@ -32,6 +32,12 @@ services:
     command:
       - --local
       - --enable-soroban-rpc
+    environment:
+      # Empty keeps the image's default protocol. Set it to upgrade the local
+      # network to that protocol before scenarios run. A protocol above the
+      # bundled stellar-core's maximum hangs quickstart's upgrade loop, which
+      # surfaces as a friendbot readiness timeout.
+      PROTOCOL_VERSION: ${QUICKSTART_PROTOCOL_VERSION:-}
     # quickstart's bundled stellar-core.cfg uses a well-known fixed
     # NODE_SEED, so the validator pubkey is a stable constant the
     # in-process captive-core fetcher can hardcode in its follower

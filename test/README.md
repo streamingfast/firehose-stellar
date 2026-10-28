@@ -70,26 +70,31 @@ If `stellar-core` is not on `$PATH`, the captive-core fetcher silently disables 
 - `docker` + `docker compose` plugin (for quickstart)
 - `go` 1.26+
 - `stellar-core` binary on `$PATH` (for captive-core in-process fetcher)
-  - Required minimum: **`29.0.0-3589.4eb833373`** (SDF's September 2026 critical security fix; anything below 29.0.0 also halts at the P29 upgrade ledger)
+  - Required minimum: **`30.0.0-3642.0e49751aa`** (anything below 30.0.0 halts at the P30 upgrade ledger)
   - macOS: `brew upgrade stellar/sdf/stellar-core` (or `brew install` for first-time)
-  - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org); run `apt update && apt install --only-upgrade stellar-core` on existing hosts to pick up the patched build
+  - Linux: `apt install stellar-core` from SDF apt repo (https://apt.stellar.org); run `apt update && apt install --only-upgrade stellar-core` on existing hosts to pick up the 30.0.0 build
   - Override location via `STELLAR_CORE_BIN=/path/to/stellar-core`
 
 The host stellar-core must be the quickstart validator's major version or newer: a newer core follows the older protocol until the upgrade vote. The quickstart images can trail the apt channel by a release (they still bundled 28.0.1 when 29.0.0 shipped). The compose stack pulls `stellar/quickstart:testing` with `pull_policy: always` (override via `QUICKSTART_PULL_POLICY=missing`) so the bundled stellar-core stays current with SDF's latest published image.
 
 ### Testing an unreleased protocol
 
-`stellar/quickstart:testing` tracks whatever protocol testnet currently runs, so between a
-stellar-core release and the testnet vote it still boots the *previous* protocol. To exercise
-the next protocol before the vote, point the stack at the `future` tag:
+The quickstart `--local` network boots on the image's `protocol_version_default`, which can lag
+the protocol testnet runs by more than one release. To exercise the next protocol before its
+vote, have quickstart upgrade the local network to it:
 
 ```bash
-QUICKSTART_IMAGE=stellar/quickstart:future go test ./test/scenarios/...
+QUICKSTART_PROTOCOL_VERSION=30 go test ./test/scenarios/...
 ```
 
-Confirm the chain came up on the protocol you expect — `curl -s localhost:8000/ | jq
-.current_protocol_version` — since the `future` image's stellar-core reports a version string
-below its maximum supported protocol.
+CI runs this on every push, on the newest protocol both the image's and the host's stellar-core
+support. The image's bundled stellar-core must support the protocol you ask for. The
+`ledger protocol version: N` line of
+`docker run --rm --platform linux/amd64 --entrypoint /usr/bin/stellar-core stellar/quickstart:testing version`
+gives its maximum. Asking for more hangs quickstart's upgrade loop, and the suite fails on a
+friendbot readiness timeout. Do not rely on the `future` tag for this; it can trail `testing`
+by several releases. Confirm the chain came up on the protocol you expect with
+`curl -s localhost:8000/ | jq .current_protocol_version`.
 
 Note that a single-validator standalone network does not produce every ledger shape a public
 network does. CAP-0083 `STELLAR_VALUE_EMPTY_TX_SET` in particular is never emitted locally:
