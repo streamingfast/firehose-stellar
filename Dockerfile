@@ -1,4 +1,4 @@
-ARG FIRECORE_VERSION=v1.18.0
+ARG FIRECORE_VERSION=v1.21.2
 # Fed from go.mod by the release workflow so this tag cannot drift below the
 # `go` directive and fail late, after the pull.
 ARG GO_VERSION=1.26

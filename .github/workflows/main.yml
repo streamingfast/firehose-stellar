@@ -12,7 +12,9 @@ on:
 jobs:
   test:
     name: test
-    runs-on: ubuntu-latest
+    # Pinned: SDF's apt repo has no suite for newer Ubuntu codenames, which 403s
+    # on ubuntu-latest (resolute).
+    runs-on: ubuntu-24.04
     steps:
       - name: Check out code
         uses: actions/checkout@v4
