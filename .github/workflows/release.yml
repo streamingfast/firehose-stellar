@@ -239,6 +239,19 @@ jobs:
           # is a floor and not a pin, a later SDF security release would never be
           # picked up and nothing would say so.
 
+      # Gate before docker-manifest: that job publishes the final tags (version,
+      # latest, branch), so a critical/high finding here stops them from moving.
+      # No pull_request trigger in this workflow, so no fork/dependabot guard and
+      # no scan-paths (every push scans). The image is the single per-architecture
+      # tag produced above, which does not match the action's default format.
+      - name: Scan the image
+        uses: streamingfast/actions/image-scan/gate@v1
+        with:
+          image: ${{ steps.meta.outputs.tags }}
+          dockerhub-user: ${{ secrets.DOCKER_SCOUT_USER }}
+          dockerhub-password: ${{ secrets.DOCKER_SCOUT_PASSWORD }}
+          severities: critical,high
+
   docker-manifest:
     name: Docker manifest
     runs-on: ubuntu-24.04
