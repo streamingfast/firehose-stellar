@@ -6,7 +6,7 @@ project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). S
 
 ## Unreleased
 
-* The Docker images are now built on `firehose-core` v1.21.2, up from v1.18.0, to clear critical/high vulnerabilities flagged by the new image scan gate in the release workflow.
+* The Docker images are now built on `firehose-core` v1.21.2, up from v1.18.0, to clear critical/high vulnerabilities flagged by the new image scan gate in the release workflow. Also bump `golang.org/x/net` and `go-jose` to fixed versions for the same reason.
 
 ## v1.4.0
 
