@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html). See the
 [Releasing](./README.md#releasing) section for how a version is cut.
 
+## Unreleased
+
+* The Docker images are now built on `firehose-core` v1.21.2, up from v1.18.0, to clear critical/high vulnerabilities flagged by the new image scan gate in the release workflow. Also bump `golang.org/x/net`, `go-jose` and `klauspost/compress` to fixed versions for the same reason.
+
 ## v1.4.0
 
 * Support Stellar Protocol 30 (Bell): bump `go-stellar-sdk` to v0.8.0 and require `stellar-core >= 30.0.0-3642.0e49751aa`. Every ledger after the P30 upgrade carries a CAP-0088 millisecond close-time `StellarValue`, which older releases cannot decode, and an older captive-core halts at the upgrade ledger (testnet vote 2026-11-03 1700 UTC, mainnet vote 2026-11-23 1700 UTC). Block timestamps keep second precision. Operators supplying their own `stellar-core` binary, on arm64 images or through `--stellar-core-bin`, must upgrade it themselves.
